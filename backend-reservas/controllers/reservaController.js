@@ -1,41 +1,90 @@
 const connection = require("../models/db");
 
-exports.listar = async (req, res) => {
+//Crear una reserva (usuario autenticado)
+exports.crearReserva = async (req, res) => {
   try {
-    const [rows] = await connection.promise().query("SELECT id, nombre, tipo, precio_por_hora, disponible FROM canchas");
-    const canchas = rows.map(c => ({ ...c, disponible: !!c.disponible }));
-    res.json(canchas);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-};
+    const { cancha_id, fecha, hora_inicio, hora_fin } = req.body;
+    const usuario_id = req.user.id; // 👈 se obtiene del token (no del body)
 
-exports.crear = async (req, res) => {
-  try {
-    const { nombre, tipo, precio_por_hora, disponible } = req.body;
-    if (!nombre || !tipo) return res.status(400).json({ error: "Faltan datos" });
+    if (!cancha_id || !fecha || !hora_inicio || !hora_fin) {
+      return res.status(400).json({ error: "Faltan datos obligatorios" });
+    }
+
     const [result] = await connection.promise().query(
-      "INSERT INTO canchas (nombre, tipo, precio_por_hora, disponible) VALUES (?, ?, ?, ?)",
-      [nombre, tipo, precio_por_hora || 0, disponible ? 1 : 0]
+      "INSERT INTO reservas (usuario_id, cancha_id, fecha, hora_inicio, hora_fin, estado) VALUES (?, ?, ?, ?, ?, ?)",
+      [usuario_id, cancha_id, fecha, hora_inicio, hora_fin, "pendiente"]
     );
-    res.status(201).json({ id: result.insertId, nombre, tipo });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    res.status(201).json({ message: "Reserva creada correctamente", id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-exports.actualizar = async (req, res) => {
+// Listar reservas del usuario autenticado
+exports.listarPorUsuario = async (req, res) => {
   try {
-    const id = req.params.id;
-    const { nombre, tipo, precio_por_hora, disponible } = req.body;
-    await connection.promise().query(
-      "UPDATE canchas SET nombre=?, tipo=?, precio_por_hora=?, disponible=? WHERE id=?",
-      [nombre, tipo, precio_por_hora || 0, disponible ? 1 : 0, id]
+    const usuario_id = req.user.id;
+
+    const [rows] = await connection.promise().query(
+      "SELECT r.*, c.nombre AS cancha_nombre, c.tipo AS cancha_tipo FROM reservas r JOIN canchas c ON r.cancha_id = c.id WHERE r.usuario_id = ?",
+      [usuario_id]
     );
-    res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-exports.eliminar = async (req, res) => {
+// Listar todas las reservas (solo admin)
+exports.listarTodas = async (req, res) => {
+  try {
+    const [rows] = await connection.promise().query(
+      `SELECT r.*, u.nombre AS usuario_nombre, c.nombre AS cancha_nombre
+       FROM reservas r
+       JOIN usuarios u ON r.usuario_id = u.id
+       JOIN canchas c ON r.cancha_id = c.id`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Actualizar el estado de una reserva (solo admin)
+exports.actualizarReserva = async (req, res) => {
   try {
     const id = req.params.id;
-    await connection.promise().query("DELETE FROM canchas WHERE id = ?", [id]);
-    res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { estado } = req.body;
+
+    if (!estado) return res.status(400).json({ error: "Debe indicar un estado" });
+
+    await connection.promise().query("UPDATE reservas SET estado = ? WHERE id = ?", [estado, id]);
+    res.json({ message: "Reserva actualizada correctamente" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Cancelar reserva (usuario)
+exports.cancelarReserva = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const usuario_id = req.user.id;
+
+    // Validar que la reserva pertenece al usuario
+    const [rows] = await connection.promise().query(
+      "SELECT * FROM reservas WHERE id = ? AND usuario_id = ?",
+      [id, usuario_id]
+    );
+
+    if (rows.length === 0)
+      return res.status(403).json({ error: "No puedes cancelar reservas de otro usuario" });
+
+    await connection.promise().query("UPDATE reservas SET estado = 'cancelada' WHERE id = ?", [id]);
+    res.json({ message: "Reserva cancelada correctamente" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
