@@ -51,3 +51,16 @@ exports.me = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+//Función listar usuarios
+exports.listarUsuarios = async (req, res) => {
+  try {
+    const [rows] = await connection.promise().query(
+      "SELECT id, nombre, email, rol FROM usuarios"
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
