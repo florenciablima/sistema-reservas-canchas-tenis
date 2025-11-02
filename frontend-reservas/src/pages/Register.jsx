@@ -3,6 +3,7 @@ import client from "../api/client";
 import { useNavigate } from "react-router-dom";
 import { Container, TextField, Button, Typography } from "@mui/material";
 
+
 export default function Register(){
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
@@ -33,4 +34,3 @@ export default function Register(){
     </Container>
   );
 }
-

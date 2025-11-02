@@ -14,6 +14,8 @@ import {
 import client from "../api/client";
 import { AuthContext } from "../contexts/AuthContext";
 
+
+
 export default function AdminDashboard() {
   const { user } = useContext(AuthContext);
   const [stats, setStats] = useState({ canchas: 0, reservas: 0 });
@@ -147,3 +149,4 @@ export default function AdminDashboard() {
     </Container>
   );
 }
+
