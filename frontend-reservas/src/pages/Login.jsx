@@ -1,37 +1,38 @@
-import React from "react";
-import { Routes, Route } from "react-router-dom";
+import React, { useState, useContext } from "react";
+import client from "../api/client";
+import { AuthContext } from "../contexts/AuthContext";
+import { useNavigate, Link } from "react-router-dom";
+import { Container, TextField, Button, Typography } from "@mui/material";
 
-import Register from "./pages/Register";
-import Login from "./pages/Login";
-import Home from "./pages/Home";
-import Canchas from "./pages/Canchas";
-import ReservaForm from "./pages/ReservaForm";
-import AdminDashboard from "./pages/AdminDashboard";
-import ProtectedRoute from "./components/ProtectedRoute";
+export default function Login(){
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { login } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
 
-export default function App() {
+  async function handleSubmit(e){
+    e.preventDefault();
+    try {
+      const res = await client.post("/usuarios/login", { email, password });
+      login(res.data);
+      navigate("/");
+    } catch (err) {
+      setError(err.response?.data?.error || "Error en login");
+    }
+  }
+
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-
-      <Route path="/" element={<Home />} />
-      <Route path="/canchas" element={<Canchas />} />
-      <Route path="/reservar" element={
-        <ProtectedRoute>
-          <ReservaForm />
-        </ProtectedRoute>
-      } />
-
-      <Route path="/admin" element={
-        <ProtectedRoute adminOnly={true}>
-          <AdminDashboard />
-        </ProtectedRoute>
-      } />
-
-      {/* 404 fallback */}
-      <Route path="*" element={<div style={{padding:20}}>Página no encontrada</div>} />
-    </Routes>
+    <Container maxWidth="sm" sx={{mt:6}}>
+      <Typography variant="h5" gutterBottom>Iniciar sesión</Typography>
+      <form onSubmit={handleSubmit}>
+        <TextField fullWidth label="Email" margin="normal" value={email} onChange={e=>setEmail(e.target.value)} />
+        <TextField fullWidth label="Contraseña" type="password" margin="normal" value={password} onChange={e=>setPassword(e.target.value)} />
+        {error && <Typography color="error">{error}</Typography>}
+        <Button variant="contained" sx={{mt:2}} type="submit">Ingresar</Button>
+      </form>
+      <Typography sx={{mt:2}}>¿No tenés cuenta? <Link to="/register">Registrate</Link></Typography>
+    </Container>
   );
 }
 
