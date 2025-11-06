@@ -3,13 +3,12 @@ import { Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
-import Canchas from "./pages/Canchas";
-import ReservaForm from "./pages/ReservaForm";
 import AdminDashboard from "./pages/AdminDashboard";
 import MisReservas from "./pages/MisReservas";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import { AuthContext } from "./contexts/AuthContext";
+import Reservar from "./pages/Reservar"; // ✅ este es el componente correcto
 import "./App.css";
 
 export default function App() {
@@ -25,14 +24,9 @@ export default function App() {
       <Route path="/" element={<Layout><Home /></Layout>} />
 
       {/* Rutas protegidas con Layout */}
-      <Route path="/canchas" element={
-        <ProtectedRoute>
-          <Layout><Canchas /></Layout>
-        </ProtectedRoute>
-      } />
       <Route path="/reservar" element={
         <ProtectedRoute>
-          <Layout><ReservaForm /></Layout>
+          <Layout><Reservar /></Layout> {/* ✅ corregido aquí */}
         </ProtectedRoute>
       } />
       <Route path="/reservas" element={

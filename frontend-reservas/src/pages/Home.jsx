@@ -4,6 +4,13 @@ import { Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import fondoTenis from "../assets/fondo-tenis.jpg";
 
+// Íconos de Material UI
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import LoginIcon from "@mui/icons-material/Login";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+
 export default function Home() {
   const { user } = useContext(AuthContext);
   const location = useLocation();
@@ -54,18 +61,26 @@ export default function Home() {
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center", mt: 2 }}>
           {user ? (
             <>
-              <Button component={Link} to="/canchas" variant="contained">Ver canchas</Button>
-              <Button component={Link} to="/reservar" variant="outlined">Reservar</Button>
+              <Button component={Link} to="/reservas" variant="outlined" startIcon={<AssignmentIcon />}>
+                Mis reservas
+              </Button>
+              <Button component={Link} to="/reservar" variant="outlined" startIcon={<CalendarMonthIcon />}>
+                Reservar
+              </Button>
               {isAdminOnHome && (
-                <Button component={Link} to="/admin" variant="contained" color="secondary">
+                <Button component={Link} to="/admin" variant="contained" color="secondary" startIcon={<AdminPanelSettingsIcon />}>
                   Panel Admin
                 </Button>
               )}
             </>
           ) : (
             <>
-              <Button component={Link} to="/login" variant="contained">Iniciar sesión</Button>
-              <Button component={Link} to="/register" variant="outlined">Registrarse</Button>
+              <Button component={Link} to="/login" variant="contained" startIcon={<LoginIcon />}>
+                Iniciar sesión
+              </Button>
+              <Button component={Link} to="/register" variant="outlined" startIcon={<PersonAddIcon />}>
+                Registrarse
+              </Button>
             </>
           )}
         </Box>
@@ -73,13 +88,12 @@ export default function Home() {
         <Box sx={{ mt: 6 }}>
           <Typography variant="h6" gutterBottom>Cómo funciona (rápido)</Typography>
           <Typography variant="body2" paragraph>
-            - Consultá la lista de canchas y sus precios.<br />
             - Reservá indicando fecha y horario.<br />
-            - Los administradores pueden gestionar canchas y ver las reservas.
+            - Consultá tus reservas desde el panel.<br />
+            - Los administradores pueden gestionar canchas y ver todas las reservas.
           </Typography>
         </Box>
       </Container>
     </Box>
   );
 }
-

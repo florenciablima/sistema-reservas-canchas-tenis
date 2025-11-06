@@ -17,16 +17,17 @@ export default function Layout({ children }) {
       <header className="header">
         <h2 className="logo">Club de Tenis</h2>
         <div className="nav-links">
-          {user ? (
+          {user && (
             <>
-              <Link to="/canchas">Canchas</Link>
-              <Link to="/reservas">Mis Reservas</Link>
+              {/* Mostrar "Canchas" solo si NO es admin */}
+              {user.rol !== "admin" && (
+                <Link to="/canchas">Canchas</Link>
+              )}
+
+              {/* Ocultamos "Mis Reservas" del navbar */}
+              {/* <Link to="/reservas">Mis Reservas</Link> */}
+
               <button onClick={handleLogout} className="logout-button">Salir</button>
-            </>
-          ) : (
-            <>
-              <Link to="/login">Iniciar sesión</Link>
-              <Link to="/register">Registrarse</Link>
             </>
           )}
         </div>
