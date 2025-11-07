@@ -51,7 +51,7 @@ exports.eliminar = async (req, res) => {
   }
 };
 
-// ✅ NUEVA FUNCIÓN: disponibilidad para el calendario
+// ✅ Disponibilidad para el calendario
 exports.disponibilidad = async (req, res) => {
   try {
     const canchaId = req.query.cancha_id;
@@ -72,7 +72,7 @@ exports.disponibilidad = async (req, res) => {
     for (const cancha of canchas) {
       if (canchaId && cancha.id !== Number(canchaId)) continue;
 
-      for (let hora = 8; hora < 22; hora++) {
+      for (let hora = 8; hora <= 20; hora++) {
         const inicio = dayjs().hour(hora).minute(0).second(0);
         const fin = inicio.add(1, "hour");
 

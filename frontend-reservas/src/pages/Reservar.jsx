@@ -30,10 +30,9 @@ const localizer = dateFnsLocalizer({
 
 export default function Reservar() {
   const [canchas, setCanchas] = useState([]);
-  const [canchaSeleccionada, setCanchaSeleccionada] = useState(null);
+  const [canchaSeleccionada, setCanchaSeleccionada] = useState("");
   const [eventos, setEventos] = useState([]);
 
-  // Cargar lista de canchas
   useEffect(() => {
     async function cargarCanchas() {
       try {
@@ -47,7 +46,6 @@ export default function Reservar() {
     cargarCanchas();
   }, []);
 
-  // Cargar disponibilidad de la cancha seleccionada
   useEffect(() => {
     if (!canchaSeleccionada) return;
 
@@ -73,7 +71,6 @@ export default function Reservar() {
     cargarDisponibilidad();
   }, [canchaSeleccionada]);
 
-  // Manejar clic en evento
   function manejarReserva(evento) {
     console.log("Evento seleccionado:", evento);
     if (evento.backgroundColor === "green") {
@@ -93,19 +90,19 @@ export default function Reservar() {
         <InputLabel id="cancha-label">Seleccionar cancha</InputLabel>
         <Select
           labelId="cancha-label"
-          value={canchaSeleccionada ?? ""}
+          value={canchaSeleccionada}
           label="Seleccionar cancha"
-          onChange={(e) => setCanchaSeleccionada(Number(e.target.value))}
+          onChange={(e) => setCanchaSeleccionada(e.target.value)}
         >
           {canchas.map((cancha) => (
-            <MenuItem key={cancha.id} value={cancha.id}>
+            <MenuItem key={cancha.id} value={String(cancha.id)}>
               {cancha.nombre}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
 
-      {canchaSeleccionada !== null && (
+      {canchaSeleccionada && (
         <>
           <Calendar
             localizer={localizer}
