@@ -19,4 +19,7 @@ router.put("/:id", auth, admin, reservaController.actualizarReserva);
 //El usuario puede cancelar su propia reserva
 router.delete("/:id", auth, reservaController.cancelarReserva);
 
+// CANCELAR reserva por usuario (ruta explícita)
+router.put("/:id/cancelar", auth, reservaController.cancelarReserva);
+
 module.exports = router;

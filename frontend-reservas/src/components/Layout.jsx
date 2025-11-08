@@ -1,11 +1,18 @@
 import React, { useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import "./Layout.css";
 
 export default function Layout({ children }) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // 🔹 Ocultar el navbar en páginas específicas
+  const ocultarNavbar =
+    location.pathname.includes("/reservas") ||
+    location.pathname.includes("/reservar") ||
+    location.pathname.includes("/admin");
 
   function handleLogout() {
     logout();
@@ -14,29 +21,31 @@ export default function Layout({ children }) {
 
   return (
     <div className="layout-container">
-      <header className="header">
-        <h2 className="logo">Club de Tenis</h2>
-        <div className="nav-links">
-          {user && (
-            <>
-              {/* Mostrar "Canchas" solo si NO es admin */}
-              {user.rol !== "admin" && (
-                <Link to="/canchas">Canchas</Link>
-              )}
+      {/* Mostrar el header solo si no está en las páginas ocultas */}
+      {!ocultarNavbar && (
+        <header className="header">
+          <h2 className="logo">Club de Tenis</h2>
+          <div className="nav-links">
+            {user && (
+              <>
+                {/* Mostrar "Canchas" solo si NO es admin */}
+                {user.rol !== "admin" && (
+                  <Link to="/canchas">Canchas</Link>
+                )}
 
-              {/* Ocultamos "Mis Reservas" del navbar */}
-              {/* <Link to="/reservas">Mis Reservas</Link> */}
+                <button onClick={handleLogout} className="logout-button">
+                  Salir
+                </button>
+              </>
+            )}
+          </div>
+        </header>
+      )}
 
-              <button onClick={handleLogout} className="logout-button">Salir</button>
-            </>
-          )}
-        </div>
-      </header>
-
-      <main className="page-container">
-        {children}
-      </main>
+      <main className="page-container">{children}</main>
     </div>
   );
 }
+
+
 
