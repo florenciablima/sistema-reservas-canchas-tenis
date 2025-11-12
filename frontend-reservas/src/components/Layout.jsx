@@ -2,13 +2,14 @@ import React, { useContext } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import "./Layout.css";
+import logoTenis from "../assets/logo-club-tenis.avif";
 
 export default function Layout({ children }) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔹 Ocultar el navbar en páginas específicas
+  // 🔹 Ocultar el navbar en ciertas páginas
   const ocultarNavbar =
     location.pathname.includes("/reservas") ||
     location.pathname.includes("/reservar") ||
@@ -21,18 +22,15 @@ export default function Layout({ children }) {
 
   return (
     <div className="layout-container">
-      {/* Mostrar el header solo si no está en las páginas ocultas */}
       {!ocultarNavbar && (
         <header className="header">
-          <h2 className="logo">Club de Tenis</h2>
+          <div className="logo-container">
+            <img src={logoTenis} alt="Club de Tenis" className="logo-img" />
+          </div>
+
           <div className="nav-links">
             {user && (
               <>
-                {/* Mostrar "Canchas" solo si NO es admin */}
-                {user.rol !== "admin" && (
-                  <Link to="/canchas">Canchas</Link>
-                )}
-
                 <button onClick={handleLogout} className="logout-button">
                   Salir
                 </button>
@@ -46,6 +44,9 @@ export default function Layout({ children }) {
     </div>
   );
 }
+
+
+
 
 
 

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import client from "../api/client";
 import Swal from "sweetalert2";
-import fondoTenis from "../assets/fondo-tenis.jpg"; // ✅ Importa la imagen local
 import {
   Container,
   Typography,
@@ -15,13 +14,14 @@ import {
   Button,
   Box,
 } from "@mui/material";
+import fondoTenis from "../assets/fondo-tenis.jpg";
 
 export default function Reservar() {
   const [canchas, setCanchas] = useState([]);
   const [canchaSeleccionada, setCanchaSeleccionada] = useState("");
   const [disponibilidad, setDisponibilidad] = useState([]);
+  const [precioHora, setPrecioHora] = useState(0);
 
-  // 🔹 Cargar todas las canchas disponibles
   useEffect(() => {
     async function cargarCanchas() {
       try {
@@ -35,7 +35,6 @@ export default function Reservar() {
     cargarCanchas();
   }, []);
 
-  // 🔹 Cargar disponibilidad de la cancha seleccionada
   useEffect(() => {
     if (!canchaSeleccionada) return;
 
@@ -45,6 +44,10 @@ export default function Reservar() {
           `/canchas/disponibilidad?cancha_id=${canchaSeleccionada}&_=${Date.now()}`
         );
         setDisponibilidad(res.data);
+
+        // Buscar y guardar el precio de la cancha elegida
+        const cancha = canchas.find(c => String(c.id) === String(canchaSeleccionada));
+        setPrecioHora(cancha ? cancha.precio_hora : 0);
       } catch (error) {
         console.error("Error al cargar disponibilidad:", error);
         Swal.fire("Error", "No se pudo cargar la disponibilidad.", "error");
@@ -54,7 +57,6 @@ export default function Reservar() {
     cargarDisponibilidad();
   }, [canchaSeleccionada]);
 
-  // 🔹 Manejar reserva con confirmación
   async function manejarReserva(horario) {
     if (horario.estado !== "disponible") {
       Swal.fire("Ocupada", "Este horario ya está reservado.", "warning");
@@ -101,16 +103,6 @@ export default function Reservar() {
         "success"
       );
 
-      // 🔁 Actualiza estado visual inmediato
-      setDisponibilidad((prev) =>
-        prev.map((bloque) =>
-          bloque.inicio === horario.inicio
-            ? { ...bloque, estado: "ocupada" }
-            : bloque
-        )
-      );
-
-      // 🔄 Refresca desde backend
       const nueva = await client.get(
         `/canchas/disponibilidad?cancha_id=${canchaSeleccionada}&_=${Date.now()}`
       );
@@ -127,36 +119,27 @@ export default function Reservar() {
   return (
     <Box
       sx={{
-        backgroundImage: `url(${fondoTenis})`, // ✅ Usa la imagen importada
+        backgroundImage: `url(${fondoTenis})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         py: 6,
       }}
     >
       <Container
-        maxWidth="md"
+        maxWidth="lg"
         sx={{
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
+          backgroundColor: "rgba(255,255,255,0.95)",
           borderRadius: 4,
-          boxShadow: 6,
+          boxShadow: 4,
           p: 4,
         }}
       >
-        <Typography
-          variant="h4"
-          align="center"
-          gutterBottom
-          sx={{ fontWeight: "bold", color: "#1e3a8a" }}
-        >
+        <Typography variant="h4" gutterBottom align="center" color="primary">
           Reservar cancha
         </Typography>
 
-        {/* Selector de cancha */}
-        <FormControl fullWidth sx={{ mb: 4 }}>
+        <FormControl fullWidth sx={{ mb: 4, zIndex: 9999 }}>
           <InputLabel id="cancha-label">Seleccionar cancha</InputLabel>
           <Select
             id="cancha-select"
@@ -164,90 +147,69 @@ export default function Reservar() {
             value={canchaSeleccionada || ""}
             label="Seleccionar cancha"
             onChange={(e) => setCanchaSeleccionada(e.target.value)}
-            MenuProps={{
-              disablePortal: false,
-              PaperProps: { style: { maxHeight: 250, zIndex: 2000 } },
-            }}
           >
             {canchas.map((cancha) => (
               <MenuItem key={cancha.id} value={String(cancha.id)}>
-                {cancha.nombre} — {cancha.tipo}
+                {`${cancha.nombre} — ${cancha.tipo} — 💰 $${cancha.precio_hora}/h`}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
 
-        {/* Lista de horarios */}
         {canchaSeleccionada && (
           <>
-            <Typography
-              variant="h6"
-              align="center"
-              gutterBottom
-              sx={{ color: "#374151" }}
-            >
-              Horarios disponibles para hoy
+            <Typography variant="h6" gutterBottom align="center">
+              Precio por hora: 💰 ${precioHora}
             </Typography>
 
-            {disponibilidad.length === 0 ? (
-              <Typography align="center" color="text.secondary">
-                No hay horarios disponibles.
-              </Typography>
-            ) : (
-              <Grid container spacing={2} justifyContent="center">
-                {disponibilidad.map((bloque, index) => (
-                  <Grid item xs={12} sm={6} md={4} key={index}>
-                    <Card
-                      sx={{
-                        transition: "all 0.3s",
-                        "&:hover": {
-                          transform:
-                            bloque.estado === "disponible"
-                              ? "scale(1.03)"
-                              : "none",
-                        },
-                        backgroundColor:
-                          bloque.estado === "disponible"
-                            ? "#e6f4ea"
-                            : "#fde8e8",
-                        border:
-                          bloque.estado === "disponible"
-                            ? "1px solid #4caf50"
-                            : "1px solid #f87171",
-                        borderRadius: 3,
-                        boxShadow: 3,
-                      }}
-                    >
-                      <CardContent sx={{ textAlign: "center" }}>
-                        <Typography variant="subtitle1" fontWeight="bold">
-                          {new Date(bloque.inicio).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}{" "}
-                          -{" "}
-                          {new Date(bloque.fin).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </Typography>
+            <Typography variant="subtitle1" gutterBottom>
+              Horarios disponibles para hoy:
+            </Typography>
 
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color:
-                              bloque.estado === "disponible"
-                                ? "success.main"
-                                : "error.main",
-                            mb: 1,
-                          }}
-                        >
-                          {bloque.estado === "disponible"
-                            ? "Disponible"
-                            : "Ocupada"}
-                        </Typography>
+            <Grid container spacing={2}>
+              {disponibilidad.map((bloque, index) => (
+                <Grid item xs={12} sm={6} md={4} key={index}>
+                  <Card
+                    sx={{
+                      backgroundColor:
+                        bloque.estado === "disponible" ? "#e8f5e9" : "#f8d7da",
+                      border:
+                        bloque.estado === "disponible"
+                          ? "1px solid #4caf50"
+                          : "1px solid #dc3545",
+                      borderRadius: 2,
+                      boxShadow: 2,
+                      transition: "0.3s",
+                    }}
+                  >
+                    <CardContent sx={{ textAlign: "center" }}>
+                      <Typography variant="subtitle1">
+                        {new Date(bloque.inicio).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}{" "}
+                        -{" "}
+                        {new Date(bloque.fin).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Typography>
 
+                      <Typography
+                        variant="body2"
+                        color={
+                          bloque.estado === "disponible"
+                            ? "success.main"
+                            : "error.main"
+                        }
+                      >
+                        {bloque.estado === "disponible"
+                          ? "Disponible"
+                          : "Ocupada"}
+                      </Typography>
+
+                      <Box sx={{ mt: 2 }}>
                         <Button
-                          fullWidth
                           variant="contained"
                           color={
                             bloque.estado === "disponible"
@@ -261,16 +223,15 @@ export default function Reservar() {
                             ? "Reservar"
                             : "Ocupada"}
                         </Button>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
           </>
         )}
 
-        {/* Botón volver */}
         <Box textAlign="center" mt={4}>
           <Button variant="outlined" href="/" color="primary">
             Volver al inicio

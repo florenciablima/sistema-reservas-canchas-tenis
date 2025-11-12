@@ -1,7 +1,7 @@
+// src/pages/Login.jsx
 import React, { useState, useContext } from "react";
-import client from "../api/client";
 import { AuthContext } from "../contexts/AuthContext";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Container, TextField, Button, Typography, Box } from "@mui/material";
 import fondoTenis from "../assets/fondo-tenis.jpg";
 
@@ -9,17 +9,18 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { login } = useContext(AuthContext);
-  const navigate = useNavigate();
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setError("");
     try {
-      const res = await client.post("/usuarios/login", { email, password });
-      login(res.data);
-      navigate("/");
+      // <-- Usamos la función login del contexto CORRECTAMENTE
+      await login(email, password);
+      // login() ya se encarga de redirigir según rol
     } catch (err) {
-      setError(err.response?.data?.error || "Error en login");
+      const msg = err.response?.data?.error || err.message || "Error en login";
+      setError(msg);
     }
   }
 
@@ -50,7 +51,7 @@ export default function Login() {
         <form onSubmit={handleSubmit}>
           <TextField fullWidth label="Email" margin="normal" value={email} onChange={e => setEmail(e.target.value)} />
           <TextField fullWidth label="Contraseña" type="password" margin="normal" value={password} onChange={e => setPassword(e.target.value)} />
-          {error && <Typography color="error">{error}</Typography>}
+          {error && <Typography color="error" sx={{ mt: 1 }}>{error}</Typography>}
           <Button variant="contained" sx={{ mt: 2 }} type="submit">Ingresar</Button>
         </form>
         <Typography sx={{ mt: 2 }}>¿No tenés cuenta? <Link to="/register">Registrate</Link></Typography>
@@ -58,5 +59,6 @@ export default function Login() {
     </Box>
   );
 }
+
 
 

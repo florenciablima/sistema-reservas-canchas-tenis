@@ -1,33 +1,26 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 import Swal from "sweetalert2";
 import fondoTenis from "../assets/fondo-tenis.jpg";
 import {
   Container,
   Typography,
+  Card,
+  CardContent,
+  Button,
+  Grid,
   Box,
   CircularProgress,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Paper,
+  Pagination,
 } from "@mui/material";
-import { Cancel, ArrowBack } from "@mui/icons-material";
 
 export default function MisReservas() {
   const [reservas, setReservas] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const navigate = useNavigate();
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 6; // 🔹 cantidad de reservas visibles por página
 
-  // 🔹 Cargar reservas del usuario logueado
+  // 🔹 Cargar reservas del usuario
   useEffect(() => {
     async function cargarReservas() {
       setCargando(true);
@@ -35,13 +28,14 @@ export default function MisReservas() {
         const token = localStorage.getItem("token");
         if (!token) {
           Swal.fire("Error", "Debe iniciar sesión para ver sus reservas.", "error");
-          navigate("/login");
+          setCargando(false);
           return;
         }
 
         const res = await client.get("/reservas/mias", {
           headers: { Authorization: `Bearer ${token}` },
         });
+
         setReservas(res.data);
       } catch (error) {
         console.error("Error al cargar reservas:", error);
@@ -52,9 +46,9 @@ export default function MisReservas() {
     }
 
     cargarReservas();
-  }, [navigate]);
+  }, []);
 
-  // 🔹 Cancelar reserva
+  // 🔹 Cancelar una reserva
   async function cancelarReserva(id) {
     const confirmar = await Swal.fire({
       title: "¿Cancelar reserva?",
@@ -69,78 +63,52 @@ export default function MisReservas() {
 
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        Swal.fire("Error", "Debe iniciar sesión para cancelar.", "error");
-        return;
-      }
-
       await client.put(
         `/reservas/${id}/cancelar`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      Swal.fire("Cancelada", "La reserva fue cancelada correctamente.", "success");
+      Swal.fire("Reserva cancelada", "El turno fue liberado correctamente.", "success");
 
-      // 🔁 Actualizar estado local
       setReservas((prev) =>
         prev.map((r) => (r.id === id ? { ...r, estado: "cancelada" } : r))
       );
     } catch (error) {
       console.error("Error al cancelar reserva:", error);
-      Swal.fire("Error", "No se pudo cancelar la reserva.", "error");
+      const msg = error.response?.data?.error || "No se pudo cancelar la reserva.";
+      Swal.fire("Error", msg, "error");
     }
   }
 
-  // 🔹 Paginación
-  const handleChangePage = (event, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
+  // 🔹 Calcular reservas visibles por página
+  const totalPaginas = Math.ceil(reservas.length / porPagina);
+  const reservasVisibles = reservas.slice(
+    (pagina - 1) * porPagina,
+    pagina * porPagina
+  );
 
   return (
     <Box
       sx={{
-        minHeight: "100vh",
         backgroundImage: `url(${fondoTenis})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        minHeight: "100vh",
         py: 6,
       }}
     >
       <Container
         maxWidth="lg"
         sx={{
-          backgroundColor: "rgba(255,255,255,0.92)",
+          backgroundColor: "rgba(255,255,255,0.94)",
           borderRadius: 4,
-          boxShadow: 5,
+          boxShadow: 6,
           p: 4,
-          position: "relative",
         }}
       >
-        {/* Botón volver arriba derecha */}
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBack />}
-          onClick={() => navigate("/")}
-          sx={{ position: "absolute", top: 16, right: 16 }}
-        >
-          Volver al inicio
-        </Button>
-
-        {/* Título */}
-        <Typography
-          variant="h4"
-          gutterBottom
-          align="center"
-          sx={{ fontWeight: "bold", color: "#1e3a8a", mb: 4 }}
-        >
-          Mis Reservas
+        <Typography variant="h4" align="center" gutterBottom color="primary">
+          Mis reservas
         </Typography>
 
         {cargando ? (
@@ -153,74 +121,88 @@ export default function MisReservas() {
           </Typography>
         ) : (
           <>
-            <TableContainer component={Paper} sx={{ borderRadius: 2, mb: 2 }}>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                    <TableCell><strong>Cancha</strong></TableCell>
-                    <TableCell><strong>Fecha</strong></TableCell>
-                    <TableCell><strong>Hora Inicio</strong></TableCell>
-                    <TableCell><strong>Hora Fin</strong></TableCell>
-                    <TableCell><strong>Estado</strong></TableCell>
-                    <TableCell align="center"><strong>Acciones</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {reservas
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell>{r.cancha_nombre}</TableCell>
-                        <TableCell>{r.fecha}</TableCell>
-                        <TableCell>{r.hora_inicio}</TableCell>
-                        <TableCell>{r.hora_fin}</TableCell>
-                        <TableCell
-                          sx={{
-                            color:
-                              r.estado === "cancelada"
-                                ? "error.main"
-                                : "success.main",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {r.estado.charAt(0).toUpperCase() + r.estado.slice(1)}
-                        </TableCell>
-                        <TableCell align="center">
-                          <Button
-                            variant="contained"
-                            color="error"
-                            size="small"
-                            startIcon={<Cancel />}
-                            disabled={r.estado === "cancelada"}
-                            onClick={() => cancelarReserva(r.id)}
-                          >
-                            {r.estado === "cancelada"
-                              ? "Cancelada"
-                              : "Cancelar"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Grid container spacing={3}>
+              {reservasVisibles.map((r) => (
+                <Grid item xs={12} sm={6} md={4} key={r.id}>
+                  <Card
+                    sx={{
+                      backgroundColor:
+                        r.estado === "cancelada" ? "#fff5f5" : "#f0fff4",
+                      border:
+                        r.estado === "cancelada"
+                          ? "1px solid #f87171"
+                          : "1px solid #4caf50",
+                      borderRadius: 3,
+                      boxShadow: 3,
+                      p: 1,
+                    }}
+                  >
+                    <CardContent sx={{ textAlign: "center" }}>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom>
+                        {r.cancha_nombre}
+                      </Typography>
 
-            {/* Paginación */}
-            <TablePagination
-              component="div"
-              count={reservas.length}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              labelRowsPerPage="Reservas por página:"
-            />
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        {r.fecha} — {r.hora_inicio} a {r.hora_fin}
+                      </Typography>
+
+                      {/* 💰 Mostrar precio (toma ambas variantes por seguridad) */}
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        💰 Precio: ${r.precio_hora ?? r.precio_por_hora ?? "—"}
+                      </Typography>
+
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color:
+                            r.estado === "cancelada" ? "error.main" : "success.main",
+                          mb: 2,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {r.estado === "cancelada" ? "Cancelada" : "Confirmada"}
+                      </Typography>
+
+                      <Button
+                        variant="contained"
+                        color={r.estado === "cancelada" ? "error" : "warning"}
+                        fullWidth
+                        disabled={r.estado === "cancelada"}
+                        onClick={() => cancelarReserva(r.id)}
+                      >
+                        {r.estado === "cancelada" ? "Cancelada" : "Cancelar"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+
+            {/* 🔹 Paginación */}
+            {totalPaginas > 1 && (
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+                <Pagination
+                  count={totalPaginas}
+                  page={pagina}
+                  onChange={(e, val) => setPagina(val)}
+                  color="primary"
+                />
+              </Box>
+            )}
           </>
         )}
+
+        <Box textAlign="center" mt={4}>
+          <Button variant="outlined" href="/" color="primary">
+            Volver al inicio
+          </Button>
+        </Box>
       </Container>
     </Box>
   );
 }
+
+
 
 
 

@@ -50,7 +50,11 @@ exports.listarPorUsuario = async (req, res) => {
     const usuario_id = req.user.id;
 
     const [rows] = await connection.promise().query(
-      `SELECT r.*, c.nombre AS cancha_nombre, c.tipo AS cancha_tipo 
+      `SELECT 
+         r.*, 
+         c.nombre AS cancha_nombre, 
+         c.tipo AS cancha_tipo,
+         c.precio_hora AS precio_hora
        FROM reservas r 
        JOIN canchas c ON r.cancha_id = c.id 
        WHERE r.usuario_id = ?
@@ -65,6 +69,7 @@ exports.listarPorUsuario = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 
