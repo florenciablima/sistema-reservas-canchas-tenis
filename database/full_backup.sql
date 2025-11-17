@@ -1,5 +1,3 @@
-CREATE DATABASE  IF NOT EXISTS `sistema_reservas` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-USE `sistema_reservas`;
 -- MySQL dump 10.13  Distrib 8.0.38, for Win64 (x86_64)
 --
 -- Host: localhost    Database: sistema_reservas
@@ -65,7 +63,7 @@ CREATE TABLE `reservas` (
   KEY `cancha_id` (`cancha_id`),
   CONSTRAINT `reservas_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
   CONSTRAINT `reservas_ibfk_2` FOREIGN KEY (`cancha_id`) REFERENCES `canchas` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -74,7 +72,7 @@ CREATE TABLE `reservas` (
 
 LOCK TABLES `reservas` WRITE;
 /*!40000 ALTER TABLE `reservas` DISABLE KEYS */;
-INSERT INTO `reservas` VALUES (1,2,1,'2025-10-28','10:00:00','11:00:00','cancelada','2025-10-30 22:31:37'),(2,1,1,'2025-11-07','12:00:00','13:00:00','cancelada','2025-11-07 22:55:38'),(3,1,1,'2025-11-07','12:00:00','13:00:00','cancelada','2025-11-07 22:55:47'),(4,1,3,'2025-11-07','11:00:00','12:00:00','cancelada','2025-11-07 23:05:59'),(5,1,3,'2025-11-07','22:00:00','23:00:00','cancelada','2025-11-07 23:07:04'),(6,1,3,'2025-11-07','09:00:00','10:00:00','cancelada','2025-11-07 23:10:20'),(7,2,3,'2025-11-07','09:00:00','10:00:00','confirmada','2025-11-07 23:11:01'),(8,1,3,'2025-11-07','09:00:00','10:00:00','cancelada','2025-11-07 23:24:26'),(9,1,1,'2025-10-24','10:00:00','11:00:00','confirmada','2025-11-08 21:18:22'),(10,1,3,'2025-11-08','16:00:00','17:00:00','confirmada','2025-11-08 21:26:15'),(11,1,3,'2025-11-08','19:00:00','20:00:00','confirmada','2025-11-08 21:31:50'),(12,1,3,'2025-11-08','17:00:00','18:00:00','confirmada','2025-11-08 21:38:00'),(13,1,1,'2025-11-08','10:00:00','11:00:00','cancelada','2025-11-08 22:06:59'),(14,1,1,'2025-11-08','10:00:00','11:00:00','cancelada','2025-11-08 22:15:52'),(15,4,5,'2025-11-12','17:00:00','18:00:00','confirmada','2025-11-12 22:29:49');
+INSERT INTO `reservas` VALUES (1,2,1,'2025-10-28','10:00:00','11:00:00','cancelada','2025-10-30 22:31:37'),(2,1,1,'2025-11-07','12:00:00','13:00:00','cancelada','2025-11-07 22:55:38'),(3,1,1,'2025-11-07','12:00:00','13:00:00','cancelada','2025-11-07 22:55:47'),(4,1,3,'2025-11-07','11:00:00','12:00:00','cancelada','2025-11-07 23:05:59'),(5,1,3,'2025-11-07','22:00:00','23:00:00','cancelada','2025-11-07 23:07:04'),(6,1,3,'2025-11-07','09:00:00','10:00:00','cancelada','2025-11-07 23:10:20'),(7,2,3,'2025-11-07','09:00:00','10:00:00','confirmada','2025-11-07 23:11:01'),(8,1,3,'2025-11-07','09:00:00','10:00:00','cancelada','2025-11-07 23:24:26'),(9,1,1,'2025-10-24','10:00:00','11:00:00','confirmada','2025-11-08 21:18:22'),(10,1,3,'2025-11-08','16:00:00','17:00:00','confirmada','2025-11-08 21:26:15'),(11,1,3,'2025-11-08','19:00:00','20:00:00','confirmada','2025-11-08 21:31:50'),(12,1,3,'2025-11-08','17:00:00','18:00:00','confirmada','2025-11-08 21:38:00'),(13,1,1,'2025-11-08','10:00:00','11:00:00','cancelada','2025-11-08 22:06:59'),(14,1,1,'2025-11-08','10:00:00','11:00:00','cancelada','2025-11-08 22:15:52'),(15,4,5,'2025-11-12','17:00:00','18:00:00','confirmada','2025-11-12 22:29:49'),(16,4,4,'2025-11-17','10:00:00','11:00:00','confirmada','2025-11-17 19:43:48');
 /*!40000 ALTER TABLE `reservas` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -106,14 +104,6 @@ LOCK TABLES `usuarios` WRITE;
 INSERT INTO `usuarios` VALUES (1,'admin','admin@gmail.com','$2b$10$p/9HyqPBQgMDvGTEtSfdDehv.pK2sfUlp4Rr9zBWPX8meKeOT.IRG','admin','2025-10-30 22:10:33'),(2,'Rodolfo Lopez','rodolfolopez@gmail.com','$2b$10$Vmx1a4W/ZhbJvZETgNhDrOo8WzPIpQEk14O9nqGGPUy6gomjKvCsa','usuario','2025-10-30 22:23:15'),(3,'Carlos Irigoyen','carlosirigoyen@gmail.com','$2b$10$LtD/4Rn3hS0PULLTtq9aE.SPcvtnxTd0FVHvffPDPYW8ycHX0D6GK','usuario','2025-11-02 23:36:44'),(4,'Florencia Lima','florencialima@live.com','$2b$10$6.M4CdKczpVDnn8DNNV75.J1o8IUSyGVrHfZH/vR0NRZkCEYuLPNe','usuario','2025-11-12 22:14:53');
 /*!40000 ALTER TABLE `usuarios` ENABLE KEYS */;
 UNLOCK TABLES;
-
---
--- Dumping events for database 'sistema_reservas'
---
-
---
--- Dumping routines for database 'sistema_reservas'
---
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -124,4 +114,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-17 16:35:29
+-- Dump completed on 2025-11-17 17:00:29
