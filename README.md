@@ -105,3 +105,6 @@ Usuario común (ejemplo ya cargado)
 email: rodolfolopez@gmail.com
 password: rodolfo123
 
+## Diagrama Entidad-Relación (DER)
+
+El archivo DER-sistema_reservas.png muestra la estructura completa de la base de datos desarrollada (incluyendo las relaciones entre usuarios, canchas y reservas)
