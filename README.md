@@ -4,45 +4,9 @@ Este proyecto es una aplicación completa (Full Stack) para gestionar reservas d
 
 🗄📁 Carpeta /database: Estructura y Datos de la BD
 
-La carpeta /database contiene los archivos necesarios para que cualquier persona pueda crear la base de datos y ejecutarla sin problemas.
+La carpeta /database contiene el archivo necesario para que cualquier persona pueda crear la base de datos y ejecutarla sin problemas.
 
-📌 1. create_schema.sql (Estructura)
-
-Este archivo contiene solo la estructura:
-
-Creación de la base reservas_tenis
-
-Tablas:
-
-usuarios
-
-canchas
-
-reservas
-
-
-Claves primarias y foráneas
-
-Tipos de datos
-
-Índices
-
-
-Sirve para crear la base desde cero, sin datos internos.
-
-
----
-
-📌 2. insert_data.sql (Datos iniciales)
-
-Este archivo contiene todos los INSERTS:
-
-Usuarios de ejemplo
-
-Canchas con precios, tipos y disponibilidad
-
-Reservas de prueba (si las había)
-
+full_backup.sql tiene la base de datos con algunos datos ya cargados para pruebas.
 
 Este archivo permite que se cargue datos reales rápidamente para probar el sistema.
 
