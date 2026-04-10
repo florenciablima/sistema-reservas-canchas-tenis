@@ -18,9 +18,10 @@ export default function MisReservas() {
   const [reservas, setReservas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [pagina, setPagina] = useState(1);
-  const porPagina = 6; // 🔹 cantidad de reservas visibles por página
+  const [tab, setTab] = useState("futuras");
 
-  // 🔹 Cargar reservas del usuario
+  const porPagina = 6;
+
   useEffect(() => {
     async function cargarReservas() {
       setCargando(true);
@@ -48,7 +49,13 @@ export default function MisReservas() {
     cargarReservas();
   }, []);
 
-  // 🔹 Cancelar una reserva
+  function formatearFecha(fecha) {
+    if (!fecha) return "";
+    const soloFecha = fecha.split("T")[0];
+    const [year, month, day] = soloFecha.split("-");
+    return `${day}/${month}/${year}`;
+  }
+
   async function cancelarReserva(id) {
     const confirmar = await Swal.fire({
       title: "¿Cancelar reserva?",
@@ -81,9 +88,27 @@ export default function MisReservas() {
     }
   }
 
-  // 🔹 Calcular reservas visibles por página
-  const totalPaginas = Math.ceil(reservas.length / porPagina);
-  const reservasVisibles = reservas.slice(
+  // 🔹 Separar futuras e historial
+  const ahora = new Date();
+
+  function obtenerFechaHoraFin(reserva) {
+    const fecha = reserva.fecha.split("T")[0];
+    return new Date(`${fecha}T${reserva.hora_fin}`);
+  }
+  const futuras = reservas.filter((r) => {
+    const fin = obtenerFechaHoraFin(r);
+    return fin > ahora && r.estado !== "cancelada";
+  });
+
+  const historial = reservas.filter((r) => {
+    const fin = obtenerFechaHoraFin(r);
+    return fin <= ahora || r.estado === "cancelada";
+  });
+
+  const listaActiva = tab === "futuras" ? futuras : historial;
+
+  const totalPaginas = Math.ceil(listaActiva.length / porPagina);
+  const reservasVisibles = listaActiva.slice(
     (pagina - 1) * porPagina,
     pagina * porPagina
   );
@@ -111,13 +136,36 @@ export default function MisReservas() {
           Mis reservas
         </Typography>
 
+        {/* 🔹 Tabs */}
+        <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mb: 3 }}>
+          <Button
+            variant={tab === "futuras" ? "contained" : "outlined"}
+            onClick={() => {
+              setTab("futuras");
+              setPagina(1);
+            }}
+          >
+            Próximas reservas
+          </Button>
+
+          <Button
+            variant={tab === "historial" ? "contained" : "outlined"}
+            onClick={() => {
+              setTab("historial");
+              setPagina(1);
+            }}
+          >
+            Historial
+          </Button>
+        </Box>
+
         {cargando ? (
           <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
             <CircularProgress color="primary" />
           </Box>
-        ) : reservas.length === 0 ? (
+        ) : listaActiva.length === 0 ? (
           <Typography align="center" color="text.secondary">
-            No tenés reservas activas.
+            No hay reservas para mostrar.
           </Typography>
         ) : (
           <>
@@ -127,10 +175,16 @@ export default function MisReservas() {
                   <Card
                     sx={{
                       backgroundColor:
-                        r.estado === "cancelada" ? "#fff5f5" : "#f0fff4",
+                        r.estado === "cancelada"
+                          ? "#fff5f5"
+                          : tab === "historial"
+                          ? "#f3f4f6"
+                          : "#f0fff4",
                       border:
                         r.estado === "cancelada"
                           ? "1px solid #f87171"
+                          : tab === "historial"
+                          ? "1px solid #9ca3af"
                           : "1px solid #4caf50",
                       borderRadius: 3,
                       boxShadow: 3,
@@ -143,10 +197,9 @@ export default function MisReservas() {
                       </Typography>
 
                       <Typography variant="body2" sx={{ mb: 1 }}>
-                        {r.fecha} — {r.hora_inicio} a {r.hora_fin}
+                        {formatearFecha(r.fecha)} — {r.hora_inicio} a {r.hora_fin}
                       </Typography>
 
-                      {/* 💰 Mostrar precio (toma ambas variantes por seguridad) */}
                       <Typography variant="body2" sx={{ mb: 1 }}>
                         💰 Precio: ${r.precio_hora ?? r.precio_por_hora ?? "—"}
                       </Typography>
@@ -155,30 +208,38 @@ export default function MisReservas() {
                         variant="body2"
                         sx={{
                           color:
-                            r.estado === "cancelada" ? "error.main" : "success.main",
+                            r.estado === "cancelada"
+                              ? "error.main"
+                              : tab === "historial"
+                              ? "text.secondary"
+                              : "success.main",
                           mb: 2,
                           fontWeight: 600,
                         }}
                       >
-                        {r.estado === "cancelada" ? "Cancelada" : "Confirmada"}
+                        {r.estado === "cancelada"
+                          ? "Cancelada"
+                          : tab === "historial"
+                          ? "Finalizada"
+                          : "Confirmada"}
                       </Typography>
 
-                      <Button
-                        variant="contained"
-                        color={r.estado === "cancelada" ? "error" : "warning"}
-                        fullWidth
-                        disabled={r.estado === "cancelada"}
-                        onClick={() => cancelarReserva(r.id)}
-                      >
-                        {r.estado === "cancelada" ? "Cancelada" : "Cancelar"}
-                      </Button>
+                      {tab === "futuras" && (
+                        <Button
+                          variant="contained"
+                          color="warning"
+                          fullWidth
+                          onClick={() => cancelarReserva(r.id)}
+                        >
+                          Cancelar
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 </Grid>
               ))}
             </Grid>
 
-            {/* 🔹 Paginación */}
             {totalPaginas > 1 && (
               <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
                 <Pagination
@@ -201,8 +262,6 @@ export default function MisReservas() {
     </Box>
   );
 }
-
-
 
 
 

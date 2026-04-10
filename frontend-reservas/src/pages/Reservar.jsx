@@ -22,6 +22,10 @@ export default function Reservar() {
   const [disponibilidad, setDisponibilidad] = useState([]);
   const [precioHora, setPrecioHora] = useState(0);
 
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+
   useEffect(() => {
     async function cargarCanchas() {
       try {
@@ -41,12 +45,13 @@ export default function Reservar() {
     async function cargarDisponibilidad() {
       try {
         const res = await client.get(
-          `/canchas/disponibilidad?cancha_id=${canchaSeleccionada}&_=${Date.now()}`
+          `/canchas/disponibilidad?cancha_id=${canchaSeleccionada}&fecha=${fechaSeleccionada}&_=${Date.now()}`
         );
         setDisponibilidad(res.data);
 
-        // Buscar y guardar el precio de la cancha elegida
-        const cancha = canchas.find(c => String(c.id) === String(canchaSeleccionada));
+        const cancha = canchas.find(
+          (c) => String(c.id) === String(canchaSeleccionada)
+        );
         setPrecioHora(cancha ? cancha.precio_hora : 0);
       } catch (error) {
         console.error("Error al cargar disponibilidad:", error);
@@ -55,7 +60,7 @@ export default function Reservar() {
     }
 
     cargarDisponibilidad();
-  }, [canchaSeleccionada]);
+  }, [canchaSeleccionada, fechaSeleccionada, canchas]);
 
   async function manejarReserva(horario) {
     if (horario.estado !== "disponible") {
@@ -87,7 +92,9 @@ export default function Reservar() {
         return;
       }
 
-      const fecha = horario.inicio.split("T")[0];
+      // 🔹 USAR LA FECHA SELECCIONADA
+      const fecha = fechaSeleccionada;
+
       const hora_inicio = horario.inicio.split("T")[1].slice(0, 5);
       const hora_fin = horario.fin.split("T")[1].slice(0, 5);
 
@@ -104,9 +111,10 @@ export default function Reservar() {
       );
 
       const nueva = await client.get(
-        `/canchas/disponibilidad?cancha_id=${canchaSeleccionada}&_=${Date.now()}`
+        `/canchas/disponibilidad?cancha_id=${canchaSeleccionada}&fecha=${fechaSeleccionada}&_=${Date.now()}`
       );
       setDisponibilidad(nueva.data);
+
     } catch (error) {
       console.error("Error al crear reserva:", error);
       const mensaje =
@@ -115,6 +123,11 @@ export default function Reservar() {
       Swal.fire("❌ Error", mensaje, "error");
     }
   }
+
+  const hoy = new Date().toISOString().split("T")[0];
+  const maxFecha = new Date();
+  maxFecha.setDate(maxFecha.getDate() + 14);
+  const max = maxFecha.toISOString().split("T")[0];
 
   return (
     <Box
@@ -139,7 +152,7 @@ export default function Reservar() {
           Reservar cancha
         </Typography>
 
-        <FormControl fullWidth sx={{ mb: 4, zIndex: 9999 }}>
+        <FormControl fullWidth sx={{ mb: 4 }}>
           <InputLabel id="cancha-label">Seleccionar cancha</InputLabel>
           <Select
             id="cancha-select"
@@ -156,6 +169,23 @@ export default function Reservar() {
           </Select>
         </FormControl>
 
+        <FormControl fullWidth sx={{ mb: 4 }}>
+          <Typography variant="subtitle1">Seleccionar fecha</Typography>
+          <input
+            type="date"
+            value={fechaSeleccionada}
+            min={hoy}
+            max={max}
+            onChange={(e) => setFechaSeleccionada(e.target.value)}
+            style={{
+              padding: "10px",
+              borderRadius: "8px",
+              border: "1px solid #ccc",
+              fontSize: "16px",
+            }}
+          />
+        </FormControl>
+
         {canchaSeleccionada && (
           <>
             <Typography variant="h6" gutterBottom align="center">
@@ -163,7 +193,7 @@ export default function Reservar() {
             </Typography>
 
             <Typography variant="subtitle1" gutterBottom>
-              Horarios disponibles para hoy:
+              Horarios disponibles para {fechaSeleccionada}:
             </Typography>
 
             <Grid container spacing={2}>
@@ -172,14 +202,15 @@ export default function Reservar() {
                   <Card
                     sx={{
                       backgroundColor:
-                        bloque.estado === "disponible" ? "#e8f5e9" : "#f8d7da",
+                        bloque.estado === "disponible"
+                          ? "#e8f5e9"
+                          : "#f8d7da",
                       border:
                         bloque.estado === "disponible"
                           ? "1px solid #4caf50"
                           : "1px solid #dc3545",
                       borderRadius: 2,
                       boxShadow: 2,
-                      transition: "0.3s",
                     }}
                   >
                     <CardContent sx={{ textAlign: "center" }}>
@@ -241,8 +272,3 @@ export default function Reservar() {
     </Box>
   );
 }
-
-
-
-
-

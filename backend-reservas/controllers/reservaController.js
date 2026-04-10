@@ -10,7 +10,49 @@ exports.crearReserva = async (req, res) => {
       return res.status(400).json({ error: "Faltan datos obligatorios" });
     }
 
-    // 🔍 Verificar si la cancha ya está ocupada en ese horario
+    // 🔹 Normalizar fecha (evitar problemas de zona horaria)
+    const fechaSQL = fecha.split("T")[0];
+
+    // ==============================
+    // VALIDACIÓN DE FECHA
+    // ==============================
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const [anio, mes, dia] = fechaSQL.split("-");
+    const fechaReserva = new Date(anio, mes - 1, dia);
+    fechaReserva.setHours(0, 0, 0, 0);
+
+    // No permitir fechas pasadas
+    if (fechaReserva < hoy) {
+      return res.status(400).json({
+        error: "No se pueden reservar fechas pasadas"
+      });
+    }
+
+    // Permitir reservar hasta 14 días adelante
+    const maxFecha = new Date();
+    maxFecha.setDate(maxFecha.getDate() + 14);
+    maxFecha.setHours(0, 0, 0, 0);
+
+    if (fechaReserva > maxFecha) {
+      return res.status(400).json({
+        error: "Solo se puede reservar con hasta 14 días de anticipación"
+      });
+    }
+
+    // ==============================
+    // VALIDAR HORARIO LÓGICO
+    // ==============================
+    if (hora_inicio >= hora_fin) {
+      return res.status(400).json({
+        error: "La hora de inicio debe ser menor que la hora de fin"
+      });
+    }
+
+    // ==============================
+    // VERIFICAR DISPONIBILIDAD
+    // ==============================
     const [conflictos] = await connection.promise().query(
       `SELECT * FROM reservas 
        WHERE cancha_id = ? 
@@ -21,7 +63,16 @@ exports.crearReserva = async (req, res) => {
          (hora_inicio < ? AND hora_fin > ?) OR
          (hora_inicio >= ? AND hora_fin <= ?)
        )`,
-      [cancha_id, fecha, hora_fin, hora_inicio, hora_inicio, hora_fin, hora_inicio, hora_fin]
+      [
+        cancha_id,
+        fechaSQL,
+        hora_fin,
+        hora_inicio,
+        hora_inicio,
+        hora_fin,
+        hora_inicio,
+        hora_fin,
+      ]
     );
 
     if (conflictos.length > 0) {
@@ -30,19 +81,23 @@ exports.crearReserva = async (req, res) => {
       });
     }
 
-    // ✅ Si está libre, crear la reserva
+    // ==============================
+    // CREAR RESERVA
+    // ==============================
     const [result] = await connection.promise().query(
       "INSERT INTO reservas (usuario_id, cancha_id, fecha, hora_inicio, hora_fin, estado) VALUES (?, ?, ?, ?, ?, 'confirmada')",
-      [usuario_id, cancha_id, fecha, hora_inicio, hora_fin]
+      [usuario_id, cancha_id, fechaSQL, hora_inicio, hora_fin]
     );
 
-    res.status(201).json({ message: "Reserva creada correctamente", id: result.insertId });
+    res.status(201).json({
+      message: "Reserva creada correctamente",
+      id: result.insertId,
+    });
   } catch (err) {
     console.error("Error al crear reserva:", err);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 };
-
 
 // Listar reservas del usuario autenticado
 exports.listarPorUsuario = async (req, res) => {
