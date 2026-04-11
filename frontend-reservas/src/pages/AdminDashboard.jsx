@@ -50,25 +50,15 @@ export default function AdminDashboard() {
     disponible: true,
   });
 
-  // 🔹 PAGINACIÓN Canchas
+  // PAGINACIÓN Canchas
   const [pageC, setPageC] = useState(0);
   const [rowsPerPageC, setRowsPerPageC] = useState(5);
-  const handleChangePageC = (event, newPage) => setPageC(newPage);
-  const handleChangeRowsPerPageC = (event) => {
-    setRowsPerPageC(parseInt(event.target.value, 10));
-    setPageC(0);
-  };
 
-  // 🔹 PAGINACIÓN Reservas
+  // PAGINACIÓN Reservas
   const [pageR, setPageR] = useState(0);
   const [rowsPerPageR, setRowsPerPageR] = useState(5);
-  const handleChangePageR = (event, newPage) => setPageR(newPage);
-  const handleChangeRowsPerPageR = (event) => {
-    setRowsPerPageR(parseInt(event.target.value, 10));
-    setPageR(0);
-  };
 
-  // 🟢 Cargar datos iniciales
+  // Cargar datos
   useEffect(() => {
     async function load() {
       try {
@@ -87,91 +77,63 @@ export default function AdminDashboard() {
     load();
   }, []);
 
-  // 🟢 Crear o actualizar cancha
+  // Crear / editar cancha
   async function handleSubmit(e) {
     e.preventDefault();
-    setMsg(null);
     try {
       if (form.id) {
         await client.put(`/canchas/${form.id}`, form);
-        setMsg({ type: "success", text: "Cancha actualizada correctamente." });
       } else {
-        const res = await client.post("/canchas", form);
-        setCanchas((prev) => [...prev, { id: res.data.id, ...form }]);
-        setMsg({ type: "success", text: "Cancha creada correctamente." });
+        await client.post("/canchas", form);
       }
+      const res = await client.get("/canchas");
+      setCanchas(res.data);
       setOpenDialog(false);
-      const resCanchas = await client.get("/canchas");
-      setCanchas(resCanchas.data);
     } catch (err) {
-      setMsg({
-        type: "error",
-        text: err.response?.data?.error || "Error al guardar la cancha.",
-      });
+      console.error(err);
     }
   }
 
-  // 🟢 Eliminar cancha
+  // Eliminar cancha
   async function handleDelete(id) {
     const confirmar = await Swal.fire({
       title: "¿Eliminar cancha?",
-      text: "Esta acción no se puede deshacer.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Sí, eliminar",
-      cancelButtonText: "Cancelar",
     });
     if (!confirmar.isConfirmed) return;
 
-    try {
-      await client.delete(`/canchas/${id}`);
-      setCanchas((prev) => prev.filter((c) => c.id !== id));
-      Swal.fire("Eliminada", "La cancha fue eliminada correctamente.", "success");
-    } catch (err) {
-      Swal.fire("Error", "No se pudo eliminar la cancha.", "error");
-    }
+    await client.delete(`/canchas/${id}`);
+    const res = await client.get("/canchas");
+    setCanchas(res.data);
   }
 
-  // 🟢 Cambiar estado de mantenimiento
+  // Toggle mantenimiento
   async function toggleMantenimiento(c) {
-    try {
-      await client.put(`/canchas/${c.id}`, { ...c, disponible: !c.disponible });
-      const resCanchas = await client.get("/canchas");
-      setCanchas(resCanchas.data);
-      Swal.fire(
-        "Actualizado",
-        `La cancha ahora está ${!c.disponible ? "disponible" : "en mantenimiento"}.`,
-        "success"
-      );
-    } catch (err) {
-      Swal.fire("Error", "No se pudo cambiar el estado.", "error");
-    }
+    await client.put(`/canchas/${c.id}`, {
+      ...c,
+      disponible: !c.disponible,
+    });
+    const res = await client.get("/canchas");
+    setCanchas(res.data);
   }
 
-  // 🟢 Cancelar reserva
+  // Cancelar reserva
   async function cancelarReserva(id) {
     const confirmar = await Swal.fire({
       title: "¿Cancelar reserva?",
-      text: "Esta acción liberará el turno.",
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: "Sí, cancelar",
-      cancelButtonText: "No",
     });
     if (!confirmar.isConfirmed) return;
 
-    try {
-      await client.put(`/reservas/${id}/cancelar`);
-      const res = await client.get("/reservas");
-      setReservas(res.data);
-      Swal.fire("Cancelada", "La reserva fue cancelada exitosamente.", "success");
-    } catch (err) {
-      Swal.fire("Error", "No se pudo cancelar la reserva.", "error");
-    }
+    await client.put(`/reservas/${id}/cancelar`);
+    const res = await client.get("/reservas");
+    setReservas(res.data);
   }
 
-  // 🟢 Filtro reservas
   const [filtroCancha, setFiltroCancha] = useState("");
+
   const reservasFiltradas = reservas.filter((r) =>
     filtroCancha ? r.cancha_nombre === filtroCancha : true
   );
@@ -183,56 +145,66 @@ export default function AdminDashboard() {
         backgroundImage: "url('/src/assets/fondo-tenis.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
         py: 5,
       }}
     >
-      <Container sx={{ bgcolor: "rgba(255,255,255,0.9)", p: 4, borderRadius: 3, boxShadow: 3 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography variant="h4" gutterBottom color="primary">
+      <Container
+        sx={{
+          bgcolor: "rgba(255,255,255,0.9)",
+          p: 4,
+          borderRadius: 3,
+        }}
+      >
+        <Box
+          sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
+        >
+          <Typography variant="h4" color="primary">
             Panel de Administración
           </Typography>
+
           <Button
             variant="outlined"
             startIcon={<ArrowBack />}
             onClick={() => navigate("/")}
           >
-            Volver al inicio
+            Volver
           </Button>
         </Box>
 
-        <Typography variant="subtitle1" gutterBottom>
-          Usuario: {user?.nombre} ({user?.rol})
-        </Typography>
-
-        <Tabs value={tab} onChange={(e, v) => setTab(v)} centered sx={{ mb: 3 }}>
+        <Tabs value={tab} onChange={(e, v) => setTab(v)} centered>
           <Tab label="Canchas" />
           <Tab label="Reservas" />
         </Tabs>
 
-        {/* 🟢 TAB CANCHAS */}
+        {/* CANCHAS */}
         {tab === 0 && (
           <>
-            <Box sx={{ mb: 3, textAlign: "right" }}>
+            <Box sx={{ textAlign: "right", my: 2 }}>
               <Button
                 variant="contained"
                 onClick={() => {
-                  setForm({ id: null, nombre: "", tipo: "polvo", precio_hora: "", disponible: true });
+                  setForm({
+                    id: null,
+                    nombre: "",
+                    tipo: "polvo",
+                    precio_hora: "",
+                    disponible: true,
+                  });
                   setOpenDialog(true);
                 }}
               >
-                ➕ Nueva Cancha
+                Nueva Cancha
               </Button>
             </Box>
 
-            <TableContainer component={Paper} sx={{ mb: 2 }}>
+            <TableContainer component={Paper}>
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>Nombre</TableCell>
                     <TableCell>Tipo</TableCell>
-                    <TableCell>Precio/h</TableCell>
-                    <TableCell>Disponible</TableCell>
+                    <TableCell>Precio</TableCell>
+                    <TableCell>Estado</TableCell>
                     <TableCell align="center">Acciones</TableCell>
                   </TableRow>
                 </TableHead>
@@ -244,15 +216,17 @@ export default function AdminDashboard() {
                         <TableCell>{c.nombre}</TableCell>
                         <TableCell>{c.tipo}</TableCell>
                         <TableCell>${c.precio_hora}</TableCell>
-                        <TableCell>{c.disponible ? "Sí" : "Mantenimiento"}</TableCell>
+                        <TableCell>
+                          {c.disponible ? "Disponible" : "Mantenimiento"}
+                        </TableCell>
                         <TableCell align="center">
-                          <IconButton color="primary" onClick={() => { setForm(c); setOpenDialog(true); }}>
+                          <IconButton onClick={() => { setForm(c); setOpenDialog(true); }}>
                             <Edit />
                           </IconButton>
-                          <IconButton color="error" onClick={() => handleDelete(c.id)}>
+                          <IconButton onClick={() => handleDelete(c.id)}>
                             <Delete />
                           </IconButton>
-                          <IconButton color="secondary" onClick={() => toggleMantenimiento(c)}>
+                          <IconButton onClick={() => toggleMantenimiento(c)}>
                             <BuildCircle />
                           </IconButton>
                         </TableCell>
@@ -261,23 +235,13 @@ export default function AdminDashboard() {
                 </TableBody>
               </Table>
             </TableContainer>
-
-            <TablePagination
-              component="div"
-              count={canchas.length}
-              page={pageC}
-              onPageChange={handleChangePageC}
-              rowsPerPage={rowsPerPageC}
-              onRowsPerPageChange={handleChangeRowsPerPageC}
-              labelRowsPerPage="Canchas por página:"
-            />
           </>
         )}
 
-        {/* 🟢 TAB RESERVAS */}
+        {/* RESERVAS */}
         {tab === 1 && (
           <>
-            <Box sx={{ mb: 3, display: "flex", gap: 2 }}>
+            <Box sx={{ my: 2 }}>
               <TextField
                 select
                 label="Filtrar por cancha"
@@ -310,89 +274,88 @@ export default function AdminDashboard() {
                 <TableBody>
                   {reservasFiltradas
                     .slice(pageR * rowsPerPageR, pageR * rowsPerPageR + rowsPerPageR)
-                    .map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell>{r.cancha_nombre}</TableCell>
-                        <TableCell>{r.usuario_nombre}</TableCell>
-                        <TableCell>{r.fecha}</TableCell>
-                        <TableCell>{r.hora_inicio}</TableCell>
-                        <TableCell>{r.hora_fin}</TableCell>
-                        <TableCell>{r.estado}</TableCell>
-                        <TableCell align="center">
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            size="small"
-                            onClick={() => cancelarReserva(r.id)}
-                            disabled={r.estado === "cancelada"}
-                          >
-                            Cancelar
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    .map((r) => {
+                      const fechaFormateada = new Date(
+                        r.fecha
+                      ).toLocaleDateString("es-AR");
+
+                      return (
+                        <TableRow key={r.id}>
+                          <TableCell>{r.cancha_nombre}</TableCell>
+                          <TableCell>{r.usuario_nombre}</TableCell>
+                          <TableCell>{fechaFormateada}</TableCell>
+                          <TableCell>{r.hora_inicio?.slice(0, 5)}</TableCell>
+                          <TableCell>{r.hora_fin?.slice(0, 5)}</TableCell>
+                          <TableCell>{r.estado}</TableCell>
+                          <TableCell align="center">
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              size="small"
+                              onClick={() => cancelarReserva(r.id)}
+                              disabled={r.estado === "cancelada"}
+                            >
+                              Cancelar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                 </TableBody>
               </Table>
             </TableContainer>
-
-            <TablePagination
-              component="div"
-              count={reservasFiltradas.length}
-              page={pageR}
-              onPageChange={handleChangePageR}
-              rowsPerPage={rowsPerPageR}
-              onRowsPerPageChange={handleChangeRowsPerPageR}
-              labelRowsPerPage="Reservas por página:"
-            />
           </>
         )}
       </Container>
 
-      {/* 🟢 DIALOG NUEVA / EDITAR CANCHA */}
+      {/* DIALOG */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>{form.id ? "Editar Cancha" : "Crear Cancha"}</DialogTitle>
+        <DialogTitle>
+          {form.id ? "Editar Cancha" : "Nueva Cancha"}
+        </DialogTitle>
         <DialogContent>
-          <Box
-            component="form"
-            onSubmit={handleSubmit}
-            sx={{ display: "grid", gap: 2, mt: 2, minWidth: 400 }}
-          >
+          <Box sx={{ display: "grid", gap: 2, mt: 2, minWidth: 300 }}>
             <TextField
               label="Nombre"
               value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              required
+              onChange={(e) =>
+                setForm({ ...form, nombre: e.target.value })
+              }
             />
             <TextField
               select
               label="Tipo"
               value={form.tipo}
-              onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, tipo: e.target.value })
+              }
             >
-              <MenuItem value="polvo">Polvo de ladrillo</MenuItem>
+              <MenuItem value="polvo">Polvo</MenuItem>
               <MenuItem value="cemento">Cemento</MenuItem>
               <MenuItem value="sintetico">Sintético</MenuItem>
             </TextField>
             <TextField
-              label="Precio por hora"
+              label="Precio"
               type="number"
               value={form.precio_hora}
-              onChange={(e) => setForm({ ...form, precio_hora: e.target.value })}
-              inputProps={{ step: "0.01" }}
+              onChange={(e) =>
+                setForm({ ...form, precio_hora: e.target.value })
+              }
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {form.id ? "Guardar cambios" : "Crear"}
+          <Button onClick={() => setOpenDialog(false)}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={handleSubmit}>
+            Guardar
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
 }
-
 
 
 

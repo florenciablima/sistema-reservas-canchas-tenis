@@ -53,7 +53,7 @@ exports.eliminar = async (req, res) => {
   }
 };
 
-// ✅ DISPONIBILIDAD CORREGIDA
+// ✅ DISPONIBILIDAD COMPLETA CON MANTENIMIENTO
 exports.disponibilidad = async (req, res) => {
   try {
     const { cancha_id, fecha } = req.query;
@@ -63,6 +63,30 @@ exports.disponibilidad = async (req, res) => {
     }
 
     const fechaConsulta = fecha || dayjs().format("YYYY-MM-DD");
+
+    // 🔴 Verificar si la cancha está en mantenimiento
+    const [[cancha]] = await connection.promise().query(
+      "SELECT disponible FROM canchas WHERE id = ?",
+      [cancha_id]
+    );
+
+    const bloques = [];
+
+    // 🚧 Si está en mantenimiento → bloquear todo
+    if (!cancha || cancha.disponible === 0) {
+      for (let hora = 8; hora < 22; hora++) {
+        const horaInicio = `${String(hora).padStart(2, "0")}:00:00`;
+        const horaFin = `${String(hora + 1).padStart(2, "0")}:00:00`;
+
+        bloques.push({
+          inicio: `${fechaConsulta}T${horaInicio}`,
+          fin: `${fechaConsulta}T${horaFin}`,
+          estado: "mantenimiento",
+        });
+      }
+
+      return res.json(bloques);
+    }
 
     // Traer reservas activas
     const [reservas] = await connection.promise().query(
@@ -74,17 +98,12 @@ exports.disponibilidad = async (req, res) => {
       [cancha_id, fechaConsulta]
     );
 
-    const bloques = [];
-
     for (let hora = 8; hora < 22; hora++) {
       const horaInicio = `${String(hora).padStart(2, "0")}:00:00`;
       const horaFin = `${String(hora + 1).padStart(2, "0")}:00:00`;
 
       const ocupada = reservas.some((r) => {
-        return (
-          horaInicio >= r.hora_inicio &&
-          horaInicio < r.hora_fin
-        );
+        return horaInicio >= r.hora_inicio && horaInicio < r.hora_fin;
       });
 
       bloques.push({
@@ -95,7 +114,6 @@ exports.disponibilidad = async (req, res) => {
     }
 
     res.json(bloques);
-
   } catch (err) {
     console.error("Error al generar disponibilidad:", err);
     res.status(500).json({ error: "Error interno del servidor" });

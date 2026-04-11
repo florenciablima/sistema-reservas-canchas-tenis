@@ -13,6 +13,7 @@ import {
   CardContent,
   Button,
   Box,
+  TextField,
 } from "@mui/material";
 import fondoTenis from "../assets/fondo-tenis.jpg";
 
@@ -59,6 +60,10 @@ export default function Reservar() {
 
     cargarDisponibilidad();
   }, [canchaSeleccionada, fechaSeleccionada, canchas]);
+
+  const enMantenimiento =
+    disponibilidad.length > 0 &&
+    disponibilidad.every((b) => b.estado === "mantenimiento");
 
   async function manejarReserva(bloque) {
     if (bloque.estado !== "disponible") return;
@@ -150,79 +155,91 @@ export default function Reservar() {
           </Select>
         </FormControl>
 
-        <FormControl fullWidth sx={{ mb: 4 }}>
-          <Typography variant="subtitle1">Seleccionar fecha</Typography>
-          <input
-            type="date"
-            value={fechaSeleccionada}
-            min={hoy}
-            max={max}
-            onChange={(e) => setFechaSeleccionada(e.target.value)}
-            style={{
-              padding: "10px",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
-              fontSize: "16px",
-            }}
-          />
-        </FormControl>
+        <TextField
+          fullWidth
+          label="Seleccionar fecha"
+          type="date"
+          value={fechaSeleccionada}
+          onChange={(e) => setFechaSeleccionada(e.target.value)}
+          disabled={enMantenimiento}
+          InputLabelProps={{ shrink: true }}
+          inputProps={{
+            min: hoy,
+            max: max,
+          }}
+          sx={{ mb: 4 }}
+        />
 
-        {canchaSeleccionada && (
+        {canchaSeleccionada && enMantenimiento && (
+          <Box
+            sx={{
+              backgroundColor: "#fff3cd",
+              border: "1px solid #ff9800",
+              borderRadius: 2,
+              p: 3,
+              textAlign: "center",
+              mb: 3,
+            }}
+          >
+            <Typography variant="h6" color="warning.main">
+              ⚠️ Esta cancha se encuentra en mantenimiento
+            </Typography>
+            <Typography variant="body2">
+              Por favor seleccione otra cancha o intente nuevamente más tarde.
+            </Typography>
+          </Box>
+        )}
+
+        {canchaSeleccionada && !enMantenimiento && (
           <>
-            <Typography variant="h6" align="center" sx={{ mb: 2 }}>
+            <Typography variant="h6" align="center" sx={{ mb: 3 }}>
               Precio por hora: 💰 ${precioHora}
             </Typography>
 
             <Grid container spacing={2}>
-              {disponibilidad.map((bloque, index) => (
-                <Grid item xs={12} sm={6} md={4} key={index}>
-                  <Card
-                    sx={{
-                      backgroundColor:
-                        bloque.estado === "disponible"
-                          ? "#e8f5e9"
-                          : "#f8d7da",
-                      border:
-                        bloque.estado === "disponible"
-                          ? "1px solid #4caf50"
-                          : "1px solid #dc3545",
-                      borderRadius: 2,
-                      boxShadow: 2,
-                    }}
-                  >
-                    <CardContent sx={{ textAlign: "center" }}>
-                      <Typography variant="subtitle1">
-                        {new Date(bloque.inicio).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}{" "}
-                        -{" "}
-                        {new Date(bloque.fin).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </Typography>
+              {disponibilidad.map((bloque, index) => {
+                const ocupada = bloque.estado === "ocupada";
 
-                      <Box sx={{ mt: 2 }}>
-                        <Button
-                          variant="contained"
-                          color={
-                            bloque.estado === "disponible"
-                              ? "success"
-                              : "error"
-                          }
-                          disabled={bloque.estado !== "disponible"}
-                          onClick={() => manejarReserva(bloque)}
-                        >
-                          {bloque.estado === "disponible"
-                            ? "Reservar"
-                            : "Ocupada"}
-                        </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
+                return (
+                  <Grid item xs={12} sm={6} md={3} key={index}>
+                    <Card
+                      sx={{
+                        backgroundColor: ocupada ? "#f8d7da" : "#e8f5e9",
+                        border: ocupada
+                          ? "1px solid #dc3545"
+                          : "1px solid #4caf50",
+                        borderRadius: 2,
+                        boxShadow: 2,
+                      }}
+                    >
+                      <CardContent sx={{ textAlign: "center" }}>
+                        <Typography variant="subtitle1">
+                          {new Date(bloque.inicio).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}{" "}
+                          -{" "}
+                          {new Date(bloque.fin).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </Typography>
+
+                        <Box sx={{ mt: 2 }}>
+                          <Button
+                            variant="contained"
+                            color={ocupada ? "error" : "success"}
+                            disabled={ocupada}
+                            onClick={() => manejarReserva(bloque)}
+                          >
+                            {ocupada ? "Ocupada" : "Reservar"}
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                );
+              })}
             </Grid>
           </>
         )}
