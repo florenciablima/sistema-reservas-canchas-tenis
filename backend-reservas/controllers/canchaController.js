@@ -53,46 +53,49 @@ exports.eliminar = async (req, res) => {
   }
 };
 
-// ✅ Consultar disponibilidad real (con detección exacta de reservas)
+// ✅ DISPONIBILIDAD CORREGIDA
 exports.disponibilidad = async (req, res) => {
   try {
-    const { cancha_id } = req.query;
-    if (!cancha_id)
+    const { cancha_id, fecha } = req.query;
+
+    if (!cancha_id) {
       return res.status(400).json({ error: "Falta el ID de la cancha" });
+    }
 
-    const hoy = dayjs().format("YYYY-MM-DD");
+    const fechaConsulta = fecha || dayjs().format("YYYY-MM-DD");
 
-    // ⏰ Traer todas las reservas activas de esa cancha para hoy
+    // Traer reservas activas
     const [reservas] = await connection.promise().query(
-      `SELECT hora_inicio, hora_fin FROM reservas 
-       WHERE cancha_id = ? AND fecha = ? AND estado != 'cancelada'`,
-      [cancha_id, hoy]
+      `SELECT hora_inicio, hora_fin 
+       FROM reservas 
+       WHERE cancha_id = ? 
+       AND fecha = ? 
+       AND estado != 'cancelada'`,
+      [cancha_id, fechaConsulta]
     );
 
-    // 📅 Generar los bloques horarios
     const bloques = [];
-    for (let hora = 8; hora < 20; hora++) {
-      const inicio = dayjs(`${hoy} ${hora}:00:00`);
-      const fin = inicio.add(1, "hour");
 
-      // 🔍 Comprobación directa con los valores MySQL (sin confusión de zonas)
+    for (let hora = 8; hora < 22; hora++) {
+      const horaInicio = `${String(hora).padStart(2, "0")}:00:00`;
+      const horaFin = `${String(hora + 1).padStart(2, "0")}:00:00`;
+
       const ocupada = reservas.some((r) => {
-        const rInicio = dayjs(`${hoy} ${r.hora_inicio}`);
-        const rFin = dayjs(`${hoy} ${r.hora_fin}`);
         return (
-          (inicio.isSame(rInicio) || inicio.isAfter(rInicio)) &&
-          inicio.isBefore(rFin)
+          horaInicio >= r.hora_inicio &&
+          horaInicio < r.hora_fin
         );
       });
 
       bloques.push({
-        inicio: inicio.format("YYYY-MM-DDTHH:mm"),
-        fin: fin.format("YYYY-MM-DDTHH:mm"),
+        inicio: `${fechaConsulta}T${horaInicio}`,
+        fin: `${fechaConsulta}T${horaFin}`,
         estado: ocupada ? "ocupada" : "disponible",
       });
     }
 
     res.json(bloques);
+
   } catch (err) {
     console.error("Error al generar disponibilidad:", err);
     res.status(500).json({ error: "Error interno del servidor" });

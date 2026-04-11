@@ -32,7 +32,6 @@ export default function Reservar() {
         const res = await client.get("/canchas");
         setCanchas(res.data);
       } catch (error) {
-        console.error("Error al cargar canchas:", error);
         Swal.fire("Error", "No se pudieron cargar las canchas.", "error");
       }
     }
@@ -54,7 +53,6 @@ export default function Reservar() {
         );
         setPrecioHora(cancha ? cancha.precio_hora : 0);
       } catch (error) {
-        console.error("Error al cargar disponibilidad:", error);
         Swal.fire("Error", "No se pudo cargar la disponibilidad.", "error");
       }
     }
@@ -62,65 +60,50 @@ export default function Reservar() {
     cargarDisponibilidad();
   }, [canchaSeleccionada, fechaSeleccionada, canchas]);
 
-  async function manejarReserva(horario) {
-    if (horario.estado !== "disponible") {
-      Swal.fire("Ocupada", "Este horario ya está reservado.", "warning");
-      return;
-    }
+  async function manejarReserva(bloque) {
+    if (bloque.estado !== "disponible") return;
 
     const confirmar = await Swal.fire({
       title: "¿Confirmar reserva?",
-      text: `De ${new Date(horario.inicio).toLocaleTimeString([], {
+      text: `${new Date(bloque.inicio).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
-      })} a ${new Date(horario.fin).toLocaleTimeString([], {
+      })} - ${new Date(bloque.fin).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       })}`,
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: "Sí, reservar",
-      cancelButtonText: "Cancelar",
+      confirmButtonText: "Reservar",
     });
 
     if (!confirmar.isConfirmed) return;
 
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        Swal.fire("Error", "Debe iniciar sesión para reservar.", "error");
-        return;
-      }
 
-      // 🔹 USAR LA FECHA SELECCIONADA
-      const fecha = fechaSeleccionada;
-
-      const hora_inicio = horario.inicio.split("T")[1].slice(0, 5);
-      const hora_fin = horario.fin.split("T")[1].slice(0, 5);
+      const hora_inicio = bloque.inicio.split("T")[1].slice(0, 5);
+      const hora_fin = bloque.fin.split("T")[1].slice(0, 5);
 
       await client.post(
         "/reservas",
-        { cancha_id: canchaSeleccionada, fecha, hora_inicio, hora_fin },
+        {
+          cancha_id: canchaSeleccionada,
+          fecha: fechaSeleccionada,
+          hora_inicio,
+          hora_fin,
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      await Swal.fire(
-        "✅ Reserva confirmada",
-        "Tu turno fue reservado correctamente.",
-        "success"
-      );
+      Swal.fire("Reserva confirmada", "", "success");
 
       const nueva = await client.get(
         `/canchas/disponibilidad?cancha_id=${canchaSeleccionada}&fecha=${fechaSeleccionada}&_=${Date.now()}`
       );
       setDisponibilidad(nueva.data);
-
     } catch (error) {
-      console.error("Error al crear reserva:", error);
-      const mensaje =
-        error.response?.data?.error ||
-        "No se pudo crear la reserva. Intenta nuevamente.";
-      Swal.fire("❌ Error", mensaje, "error");
+      Swal.fire("Error", "No se pudo crear la reserva.", "error");
     }
   }
 
@@ -142,22 +125,20 @@ export default function Reservar() {
       <Container
         maxWidth="lg"
         sx={{
-          backgroundColor: "rgba(255,255,255,0.95)",
+          backgroundColor: "rgba(255,255,255,0.94)",
           borderRadius: 4,
-          boxShadow: 4,
+          boxShadow: 6,
           p: 4,
         }}
       >
-        <Typography variant="h4" gutterBottom align="center" color="primary">
+        <Typography variant="h4" align="center" gutterBottom color="primary">
           Reservar cancha
         </Typography>
 
         <FormControl fullWidth sx={{ mb: 4 }}>
-          <InputLabel id="cancha-label">Seleccionar cancha</InputLabel>
+          <InputLabel>Seleccionar cancha</InputLabel>
           <Select
-            id="cancha-select"
-            labelId="cancha-label"
-            value={canchaSeleccionada || ""}
+            value={canchaSeleccionada}
             label="Seleccionar cancha"
             onChange={(e) => setCanchaSeleccionada(e.target.value)}
           >
@@ -188,12 +169,8 @@ export default function Reservar() {
 
         {canchaSeleccionada && (
           <>
-            <Typography variant="h6" gutterBottom align="center">
+            <Typography variant="h6" align="center" sx={{ mb: 2 }}>
               Precio por hora: 💰 ${precioHora}
-            </Typography>
-
-            <Typography variant="subtitle1" gutterBottom>
-              Horarios disponibles para {fechaSeleccionada}:
             </Typography>
 
             <Grid container spacing={2}>
@@ -224,19 +201,6 @@ export default function Reservar() {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
-                      </Typography>
-
-                      <Typography
-                        variant="body2"
-                        color={
-                          bloque.estado === "disponible"
-                            ? "success.main"
-                            : "error.main"
-                        }
-                      >
-                        {bloque.estado === "disponible"
-                          ? "Disponible"
-                          : "Ocupada"}
                       </Typography>
 
                       <Box sx={{ mt: 2 }}>
