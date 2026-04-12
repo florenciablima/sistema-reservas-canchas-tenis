@@ -27,18 +27,20 @@ export default function Reservar() {
     new Date().toISOString().split("T")[0]
   );
 
+  // 🔹 Cargar canchas
   useEffect(() => {
     async function cargarCanchas() {
       try {
         const res = await client.get("/canchas");
         setCanchas(res.data);
-      } catch (error) {
+      } catch {
         Swal.fire("Error", "No se pudieron cargar las canchas.", "error");
       }
     }
     cargarCanchas();
   }, []);
 
+  // 🔹 Cargar disponibilidad
   useEffect(() => {
     if (!canchaSeleccionada) return;
 
@@ -52,8 +54,11 @@ export default function Reservar() {
         const cancha = canchas.find(
           (c) => String(c.id) === String(canchaSeleccionada)
         );
-        setPrecioHora(cancha ? cancha.precio_hora : 0);
-      } catch (error) {
+
+        // 🔥 FIX: asegurar número
+        setPrecioHora(cancha ? Number(cancha.precio_hora) : 0);
+
+      } catch {
         Swal.fire("Error", "No se pudo cargar la disponibilidad.", "error");
       }
     }
@@ -61,10 +66,23 @@ export default function Reservar() {
     cargarDisponibilidad();
   }, [canchaSeleccionada, fechaSeleccionada, canchas]);
 
-  const enMantenimiento =
-    disponibilidad.length > 0 &&
-    disponibilidad.every((b) => b.estado === "mantenimiento");
+  // 🔹 Crear reserva efectivo
+  async function crearReserva(hora_inicio, hora_fin) {
+    const token = localStorage.getItem("token");
 
+    await client.post(
+      "/reservas",
+      {
+        cancha_id: canchaSeleccionada,
+        fecha: fechaSeleccionada,
+        hora_inicio,
+        hora_fin,
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  }
+
+  // 🔹 Acción principal
   async function manejarReserva(bloque) {
     if (bloque.estado !== "disponible") return;
 
@@ -73,42 +91,67 @@ export default function Reservar() {
       text: `${new Date(bloque.inicio).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
-      })} - ${new Date(bloque.fin).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
       })}`,
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: "Reservar",
+      confirmButtonText: "Continuar",
     });
 
     if (!confirmar.isConfirmed) return;
 
-    try {
-      const token = localStorage.getItem("token");
+    const pago = await Swal.fire({
+      title: "Elegir método de pago",
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: "Mercado Pago",
+      denyButtonText: "Pagar en el club",
+      cancelButtonText: "Cancelar",
+    });
 
+    if (pago.isDismissed) return;
+
+    try {
       const hora_inicio = bloque.inicio.split("T")[1].slice(0, 5);
       const hora_fin = bloque.fin.split("T")[1].slice(0, 5);
 
-      await client.post(
-        "/reservas",
-        {
+      // 💵 EFECTIVO
+      if (pago.isDenied) {
+        await crearReserva(hora_inicio, hora_fin);
+
+        Swal.fire("Reserva confirmada", "Pagás en el club", "success");
+      }
+
+      // 💳 MERCADO PAGO
+      if (pago.isConfirmed) {
+        console.log("PRECIO ENVIADO:", precioHora); // 🔥 debug
+
+        const res = await client.post("/pagos/mercadopago", {
           cancha_id: canchaSeleccionada,
           fecha: fechaSeleccionada,
           hora_inicio,
           hora_fin,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+          precio: Number(precioHora), // 🔥 FIX CLAVE
+        });
 
-      Swal.fire("Reserva confirmada", "", "success");
+        console.log("RESPUESTA MP:", res.data);
 
+        if (!res.data.init_point) {
+          throw new Error("No se recibió init_point");
+        }
+
+        window.location.href = res.data.init_point;
+        return;
+      }
+
+      // 🔄 refrescar
       const nueva = await client.get(
         `/canchas/disponibilidad?cancha_id=${canchaSeleccionada}&fecha=${fechaSeleccionada}&_=${Date.now()}`
       );
       setDisponibilidad(nueva.data);
+
     } catch (error) {
-      Swal.fire("Error", "No se pudo crear la reserva.", "error");
+      console.error("ERROR COMPLETO:", error);
+      Swal.fire("Error", "No se pudo completar la operación.", "error");
     }
   }
 
@@ -130,10 +173,10 @@ export default function Reservar() {
       <Container
         maxWidth="lg"
         sx={{
-          backgroundColor: "rgba(255,255,255,0.94)",
-          borderRadius: 4,
-          boxShadow: 6,
+          bgcolor: "rgba(255,255,255,0.95)",
           p: 4,
+          borderRadius: 4,
+          boxShadow: 4,
         }}
       >
         <Typography variant="h4" align="center" gutterBottom color="primary">
@@ -147,9 +190,9 @@ export default function Reservar() {
             label="Seleccionar cancha"
             onChange={(e) => setCanchaSeleccionada(e.target.value)}
           >
-            {canchas.map((cancha) => (
-              <MenuItem key={cancha.id} value={String(cancha.id)}>
-                {`${cancha.nombre} — ${cancha.tipo} — 💰 $${cancha.precio_hora}/h`}
+            {canchas.map((c) => (
+              <MenuItem key={c.id} value={String(c.id)}>
+                {`${c.nombre} — ${c.tipo} — 💰 $${c.precio_hora}/h`}
               </MenuItem>
             ))}
           </Select>
@@ -161,88 +204,49 @@ export default function Reservar() {
           type="date"
           value={fechaSeleccionada}
           onChange={(e) => setFechaSeleccionada(e.target.value)}
-          disabled={enMantenimiento}
           InputLabelProps={{ shrink: true }}
-          inputProps={{
-            min: hoy,
-            max: max,
-          }}
+          inputProps={{ min: hoy, max }}
           sx={{ mb: 4 }}
         />
 
-        {canchaSeleccionada && enMantenimiento && (
-          <Box
-            sx={{
-              backgroundColor: "#fff3cd",
-              border: "1px solid #ff9800",
-              borderRadius: 2,
-              p: 3,
-              textAlign: "center",
-              mb: 3,
-            }}
-          >
-            <Typography variant="h6" color="warning.main">
-              ⚠️ Esta cancha se encuentra en mantenimiento
-            </Typography>
-            <Typography variant="body2">
-              Por favor seleccione otra cancha o intente nuevamente más tarde.
-            </Typography>
-          </Box>
-        )}
+        <Grid container spacing={2}>
+          {disponibilidad.map((b, i) => {
+            const ocupada = b.estado !== "disponible";
 
-        {canchaSeleccionada && !enMantenimiento && (
-          <>
-            <Typography variant="h6" align="center" sx={{ mb: 3 }}>
-              Precio por hora: 💰 ${precioHora}
-            </Typography>
+            return (
+              <Grid item xs={12} sm={6} md={3} key={i}>
+                <Card
+                  sx={{
+                    backgroundColor: ocupada ? "#f8d7da" : "#e8f5e9",
+                    border: ocupada
+                      ? "1px solid #dc3545"
+                      : "1px solid #4caf50",
+                    borderRadius: 2,
+                  }}
+                >
+                  <CardContent sx={{ textAlign: "center" }}>
+                    <Typography variant="subtitle1">
+                      {new Date(b.inicio).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Typography>
 
-            <Grid container spacing={2}>
-              {disponibilidad.map((bloque, index) => {
-                const ocupada = bloque.estado === "ocupada";
-
-                return (
-                  <Grid item xs={12} sm={6} md={3} key={index}>
-                    <Card
-                      sx={{
-                        backgroundColor: ocupada ? "#f8d7da" : "#e8f5e9",
-                        border: ocupada
-                          ? "1px solid #dc3545"
-                          : "1px solid #4caf50",
-                        borderRadius: 2,
-                        boxShadow: 2,
-                      }}
+                    <Button
+                      variant="contained"
+                      color={ocupada ? "error" : "success"}
+                      disabled={ocupada}
+                      onClick={() => manejarReserva(b)}
+                      sx={{ mt: 2 }}
                     >
-                      <CardContent sx={{ textAlign: "center" }}>
-                        <Typography variant="subtitle1">
-                          {new Date(bloque.inicio).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}{" "}
-                          -{" "}
-                          {new Date(bloque.fin).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </Typography>
-
-                        <Box sx={{ mt: 2 }}>
-                          <Button
-                            variant="contained"
-                            color={ocupada ? "error" : "success"}
-                            disabled={ocupada}
-                            onClick={() => manejarReserva(bloque)}
-                          >
-                            {ocupada ? "Ocupada" : "Reservar"}
-                          </Button>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                );
-              })}
-            </Grid>
-          </>
-        )}
+                      {ocupada ? "Ocupada" : "Reservar"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
 
         <Box textAlign="center" mt={4}>
           <Button variant="outlined" href="/" color="primary">
