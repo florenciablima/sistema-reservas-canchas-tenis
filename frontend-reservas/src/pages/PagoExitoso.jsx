@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import client from "../api/client";
 import Swal from "sweetalert2";
 import { Box, Typography, CircularProgress } from "@mui/material";
 
 export default function PagoExitoso() {
   const location = useLocation();
-  const [procesado, setProcesado] = useState(false);
+  const navigate = useNavigate();
+
+  // 🔒 mejor que useState para evitar doble ejecución
+  const procesado = useRef(false);
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
@@ -14,11 +17,12 @@ export default function PagoExitoso() {
 
     if (!payment_id) {
       Swal.fire("Error", "No se recibió el pago", "error");
+      navigate("/reservar");
       return;
     }
 
-    // 🚫 evitar doble ejecución
-    if (procesado) return;
+    if (procesado.current) return;
+    procesado.current = true;
 
     async function confirmar() {
       try {
@@ -26,23 +30,31 @@ export default function PagoExitoso() {
           payment_id,
         });
 
-        Swal.fire({
-          title: "Pago aprobado",
+        await Swal.fire({
+          title: "Pago aprobado 🎾",
           text: "Reserva confirmada correctamente",
           icon: "success",
-          confirmButtonText: "OK",
+          confirmButtonText: "Ver turnos",
         });
 
-        setProcesado(true);
+        // 🔥 REDIRECCIÓN FINAL
+        navigate("/reservas"); // o "/reservar" si preferís
 
       } catch (error) {
         console.error("ERROR CONFIRMAR:", error);
-        Swal.fire("Error", "No se pudo confirmar la reserva", "error");
+
+        await Swal.fire(
+          "Error",
+          "El pago se realizó pero no pudimos confirmar la reserva",
+          "error"
+        );
+
+        navigate("/reservar");
       }
     }
 
     confirmar();
-  }, [location, procesado]);
+  }, [location, navigate]);
 
   return (
     <Box
