@@ -123,24 +123,21 @@ export default function Reservar() {
 
       // 💳 MERCADO PAGO
       if (pago.isConfirmed) {
-        console.log("PRECIO ENVIADO:", precioHora); // 🔥 debug
+        // CREAR RESERVA PRIMERO (Como si fuese efectivo)
+        await crearReserva(hora_inicio, hora_fin);
 
-        const res = await client.post("/pagos/mercadopago", {
+        //DESPUES IR A MP (SOLO VISUAL PARA LA DEMO)
+        const res=await client.post("/pagos/mercadopago", {
           cancha_id: canchaSeleccionada,
           fecha: fechaSeleccionada,
           hora_inicio,
           hora_fin,
-          precio: Number(precioHora), // 🔥 FIX CLAVE
+          precio: Number(precioHora),
         });
-
-        console.log("RESPUESTA MP:", res.data);
-
-        if (!res.data.init_point) {
-          throw new Error("No se recibió init_point");
-        }
 
         window.location.href = res.data.init_point;
         return;
+
       }
 
       // 🔄 refrescar
