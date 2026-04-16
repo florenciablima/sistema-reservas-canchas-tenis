@@ -55,9 +55,7 @@ export default function Reservar() {
           (c) => String(c.id) === String(canchaSeleccionada)
         );
 
-        // 🔥 FIX: asegurar número
         setPrecioHora(cancha ? Number(cancha.precio_hora) : 0);
-
       } catch {
         Swal.fire("Error", "No se pudo cargar la disponibilidad.", "error");
       }
@@ -66,7 +64,7 @@ export default function Reservar() {
     cargarDisponibilidad();
   }, [canchaSeleccionada, fechaSeleccionada, canchas]);
 
-  // 🔹 Crear reserva efectivo
+  // 🔹 Crear reserva
   async function crearReserva(hora_inicio, hora_fin) {
     const token = localStorage.getItem("token");
 
@@ -117,17 +115,14 @@ export default function Reservar() {
       // 💵 EFECTIVO
       if (pago.isDenied) {
         await crearReserva(hora_inicio, hora_fin);
-
         Swal.fire("Reserva confirmada", "Pagás en el club", "success");
       }
 
       // 💳 MERCADO PAGO
       if (pago.isConfirmed) {
-        // CREAR RESERVA PRIMERO (Como si fuese efectivo)
         await crearReserva(hora_inicio, hora_fin);
 
-        //DESPUES IR A MP (SOLO VISUAL PARA LA DEMO)
-        const res=await client.post("/pagos/mercadopago", {
+        const res = await client.post("/pagos/mercadopago", {
           cancha_id: canchaSeleccionada,
           fecha: fechaSeleccionada,
           hora_inicio,
@@ -137,10 +132,9 @@ export default function Reservar() {
 
         window.location.href = res.data.init_point;
         return;
-
       }
 
-      // 🔄 refrescar
+      // 🔄 refrescar disponibilidad
       const nueva = await client.get(
         `/canchas/disponibilidad?cancha_id=${canchaSeleccionada}&fecha=${fechaSeleccionada}&_=${Date.now()}`
       );
@@ -208,22 +202,37 @@ export default function Reservar() {
 
         <Grid container spacing={2}>
           {disponibilidad.map((b, i) => {
+            const ahora = new Date();
+            const inicio = new Date(b.inicio);
+
             const ocupada = b.estado !== "disponible";
+
+            const esHoy =
+              inicio.toDateString() === ahora.toDateString();
+
+            const pasada = esHoy && inicio < ahora;
 
             return (
               <Grid item xs={12} sm={6} md={3} key={i}>
                 <Card
                   sx={{
-                    backgroundColor: ocupada ? "#f8d7da" : "#e8f5e9",
+                    backgroundColor: ocupada
+                      ? "#f8d7da"
+                      : pasada
+                      ? "#e0e0e0"
+                      : "#e8f5e9",
                     border: ocupada
                       ? "1px solid #dc3545"
+                      : pasada
+                      ? "1px solid #9e9e9e"
                       : "1px solid #4caf50",
                     borderRadius: 2,
+                    opacity: pasada ? 0.7 : 1,
                   }}
                 >
                   <CardContent sx={{ textAlign: "center" }}>
                     <Typography variant="subtitle1">
-                      {new Date(b.inicio).toLocaleTimeString([], {
+                      {inicio.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
@@ -231,12 +240,18 @@ export default function Reservar() {
 
                     <Button
                       variant="contained"
-                      color={ocupada ? "error" : "success"}
-                      disabled={ocupada}
+                      color={
+                        ocupada ? "error" : pasada ? "inherit" : "success"
+                      }
+                      disabled={ocupada || pasada}
                       onClick={() => manejarReserva(b)}
                       sx={{ mt: 2 }}
                     >
-                      {ocupada ? "Ocupada" : "Reservar"}
+                      {ocupada
+                        ? "Ocupada"
+                        : pasada
+                        ? "Pasada"
+                        : "Reservar"}
                     </Button>
                   </CardContent>
                 </Card>
