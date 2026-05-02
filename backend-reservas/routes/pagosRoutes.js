@@ -12,4 +12,7 @@ router.post("/efectivo", auth, pagosController.pagoEfectivo);
 // confirmación MP
 router.post("/confirmar", pagosController.confirmarPago);
 
+const admin = require("../middlewares/admin");
+router.get("/", auth, admin, pagosController.listarTodos);
+
 module.exports = router;

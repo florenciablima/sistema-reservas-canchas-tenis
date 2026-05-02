@@ -5,7 +5,7 @@ const connection = require("../models/db");
 // ==============================
 exports.crearReserva = async (req, res) => {
   try {
-    const { cancha_id, fecha, hora_inicio, hora_fin } = req.body;
+    const { cancha_id, fecha, hora_inicio, hora_fin, metodo_pago } = req.body;
     const usuario_id = req.user.id;
 
     if (!cancha_id || !fecha || !hora_inicio || !hora_fin) {
@@ -43,6 +43,18 @@ exports.crearReserva = async (req, res) => {
       return res.status(400).json({
         error: "Hora inicio debe ser menor",
       });
+    }
+
+    // VALIDAR QUE LA HORA NO HAYA PASADO SI ES HOY
+    const hoyStr = new Date().toISOString().split("T")[0];
+    if (fechaSQL === hoyStr) {
+      const horaActual = new Date().getHours();
+      const horaInicioNum = parseInt(hora_inicio.split(":")[0], 10);
+      if (horaInicioNum < horaActual) {
+        return res.status(400).json({
+          error: "No podés reservar un horario que ya pasó",
+        });
+      }
     }
 
     // DISPONIBILIDAD
@@ -95,8 +107,8 @@ exports.crearReserva = async (req, res) => {
     // CREAR PAGO
     const [pagoResult] = await connection.promise().query(
       `INSERT INTO pagos (usuario_id, reserva_id, monto, metodo, estado)
-       VALUES (?, ?, ?, 'manual', 'pendiente')`,
-      [usuario_id, reservaId, precio]
+       VALUES (?, ?, ?, ?, 'pendiente')`,
+      [usuario_id, reservaId, precio, metodo_pago || 'efectivo']
     );
 
     const pagoId = pagoResult.insertId;
@@ -124,12 +136,13 @@ exports.listarPorUsuario = async (req, res) => {
       `SELECT 
          r.*, 
          c.nombre AS cancha_nombre,
-         p.estado AS pago_estado
+         p.estado AS pago_estado,
+         p.monto
        FROM reservas r 
        JOIN canchas c ON r.cancha_id = c.id
        LEFT JOIN pagos p ON r.id = p.reserva_id
        WHERE r.usuario_id = ?
-       ORDER BY r.fecha DESC`,
+       ORDER BY r.fecha DESC, r.hora_inicio DESC`,
       [usuario_id]
     );
 
@@ -149,13 +162,12 @@ exports.listarTodas = async (req, res) => {
         r.*, 
         u.nombre AS usuario_nombre,
         c.nombre AS cancha_nombre,
-        p.estado AS pago_estado,
-        p.metodo AS pago_metodo
+        p.estado AS pago_estado
       FROM reservas r
       LEFT JOIN usuarios u ON r.usuario_id = u.id
       LEFT JOIN canchas c ON r.cancha_id = c.id
       LEFT JOIN pagos p ON r.id = p.reserva_id
-      ORDER BY r.fecha DESC`
+      ORDER BY r.fecha DESC, r.hora_inicio DESC`
     );
 
     res.json(rows);

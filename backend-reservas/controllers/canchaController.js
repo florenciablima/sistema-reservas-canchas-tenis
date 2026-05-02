@@ -98,6 +98,9 @@ exports.disponibilidad = async (req, res) => {
       [cancha_id, fechaConsulta]
     );
 
+    const ahora = new Date();
+    const esHoy = fechaConsulta === ahora.toISOString().split("T")[0];
+
     for (let hora = 8; hora < 22; hora++) {
       const horaInicio = `${String(hora).padStart(2, "0")}:00:00`;
       const horaFin = `${String(hora + 1).padStart(2, "0")}:00:00`;
@@ -106,10 +109,12 @@ exports.disponibilidad = async (req, res) => {
         return horaInicio >= r.hora_inicio && horaInicio < r.hora_fin;
       });
 
+      const yaPaso = esHoy && hora < ahora.getHours();
+
       bloques.push({
         inicio: `${fechaConsulta}T${horaInicio}`,
         fin: `${fechaConsulta}T${horaFin}`,
-        estado: ocupada ? "ocupada" : "disponible",
+        estado: yaPaso ? "pasada" : ocupada ? "ocupada" : "disponible",
       });
     }
 
@@ -119,6 +124,7 @@ exports.disponibilidad = async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor" });
   }
 };
+
 
 
 

@@ -55,12 +55,13 @@ export default function Reservar() {
     cargarDisponibilidad();
   }, [canchaSeleccionada, fechaSeleccionada, canchas]);
 
-  async function crearReserva(hora_inicio, hora_fin) {
+  async function crearReserva(hora_inicio, hora_fin, metodo_pago = "manual") {
     const res = await client.post("/reservas", {
       cancha_id: canchaSeleccionada,
       fecha: fechaSeleccionada,
       hora_inicio,
       hora_fin,
+      metodo_pago,
     });
 
     return res.data;
@@ -88,14 +89,14 @@ export default function Reservar() {
     try {
       // EFECTIVO
       if (pago.isDenied) {
-        await crearReserva(hora_inicio, hora_fin);
-
+        await crearReserva(hora_inicio, hora_fin, "manual");
         Swal.fire("Reserva confirmada", "Pagás en el club", "success");
+        return;
       }
 
       // MERCADO PAGO
       if (pago.isConfirmed) {
-        const reserva = await crearReserva(hora_inicio, hora_fin);
+        const reserva = await crearReserva(hora_inicio, hora_fin, "online");
 
         const pago_id = reserva.pago_id;
 
@@ -156,28 +157,43 @@ export default function Reservar() {
         />
 
         <Grid container spacing={2}>
-          {disponibilidad.map((b, i) => (
-            <Grid item xs={6} md={3} key={i}>
-              <Card>
-                <CardContent sx={{ textAlign: "center" }}>
-                  <Typography>
-                    {new Date(b.inicio).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </Typography>
+          {disponibilidad.map((b, i) => {
+            const colores = {
+              disponible:   { bg: "#e8f5e9", border: "#4caf50", texto: "#2e7d32", label: "Disponible" },
+              ocupada:      { bg: "#ffebee", border: "#f44336", texto: "#c62828", label: "Ocupada" },
+              pasada:       { bg: "#f5f5f5", border: "#bdbdbd", texto: "#9e9e9e", label: "Pasada" },
+              mantenimiento:{ bg: "#fff3e0", border: "#ff9800", texto: "#e65100", label: "Mantenimiento" },
+            };
+            const estilo = colores[b.estado] || colores.disponible;
 
-                  <Button
-                    disabled={b.estado !== "disponible"}
-                    onClick={() => manejarReserva(b)}
-                    sx={{ mt: 2 }}
-                  >
-                    {b.estado}
-                  </Button>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+            return (
+              <Grid item xs={6} md={3} key={i}>
+                <Card
+                  onClick={() => manejarReserva(b)}
+                  sx={{
+                    border: `2px solid ${estilo.border}`,
+                    bgcolor: estilo.bg,
+                    cursor: b.estado === "disponible" ? "pointer" : "default",
+                    transition: "transform 0.15s",
+                    "&:hover": b.estado === "disponible"
+                      ? { transform: "scale(1.03)", boxShadow: 3 }
+                      : {},
+                  }}
+                >
+                  <CardContent sx={{ textAlign: "center", py: 1.5 }}>
+                    <Typography variant="h6" sx={{ color: estilo.texto, fontWeight: "bold" }}>
+                      {b.inicio.includes("T")
+                        ? b.inicio.split("T")[1].slice(0, 5)
+                        : b.inicio.split(" ")[1].slice(0, 5)}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: estilo.texto }}>
+                      {estilo.label}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
 
         <Box textAlign="center" mt={4}>

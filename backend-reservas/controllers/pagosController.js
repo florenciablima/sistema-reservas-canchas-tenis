@@ -28,9 +28,9 @@ exports.crearPago = async (req, res) => {
 
     const pago = rows[0];
 
-    // Marcar como online apenas el usuario elige MP
+    // Marcar como online y abonado apenas el usuario elige MP
     await connection.promise().query(
-      "UPDATE pagos SET metodo = 'online' WHERE id = ?",
+      "UPDATE pagos SET metodo = 'online', estado = 'pagado' WHERE id = ?",
       [pago_id]
     );
 
@@ -72,7 +72,7 @@ exports.pagoEfectivo = async (req, res) => {
 
     await connection.promise().query(
       `UPDATE pagos 
-       SET estado = 'pagado', metodo = 'manual', fecha_pago = NOW()
+       SET estado = 'pagado', metodo = 'efectivo', fecha_pago = NOW()
        WHERE id = ?`,
       [pago_id]
     );
@@ -119,5 +119,34 @@ exports.confirmarPago = async (req, res) => {
   } catch (error) {
     console.error("CONFIRMAR ERROR:", error);
     res.status(500).json({ error: "Error al confirmar pago" });
+  }
+};
+// ==============================
+// 📋 LISTAR TODOS LOS PAGOS (ADMIN)
+// ==============================
+exports.listarTodos = async (req, res) => {
+  try {
+    const [rows] = await connection.promise().query(
+      `SELECT 
+        p.id,
+        p.monto,
+        p.metodo,
+        p.estado,
+        p.fecha_pago,
+        u.nombre AS usuario_nombre,
+        c.nombre AS cancha_nombre,
+        r.fecha AS fecha_reserva,
+        r.hora_inicio,
+        r.hora_fin
+      FROM pagos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN reservas r ON p.reserva_id = r.id
+      LEFT JOIN canchas c ON r.cancha_id = c.id
+      ORDER BY p.id DESC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al listar pagos" });
   }
 };

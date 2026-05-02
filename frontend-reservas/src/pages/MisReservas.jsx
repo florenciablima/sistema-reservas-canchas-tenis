@@ -169,10 +169,20 @@ export default function MisReservas() {
                       <Typography sx={{ mt: 1 }}>
                         {r.pago_estado === "pagado"
                           ? "🟢 Pagado"
+                          : r.pago_estado === "cancelado"
+                          ? "🔴 Cancelado"
                           : "🟡 Pendiente"}
                       </Typography>
 
-                      <Typography>{r.estado}</Typography>
+                      {r.monto && (
+                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                          Monto: ${Number(r.monto).toLocaleString("es-AR")}
+                        </Typography>
+                      )}
+
+                      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                        {r.estado === "confirmada" ? "Confirmada" : r.estado === "cancelada" ? "Cancelada" : r.estado}
+                      </Typography>
 
                       {tab === "futuras" && r.estado !== "cancelada" && (
                         <Button
