@@ -5,17 +5,28 @@ const client = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN,
 });
 
-// 🟢 CREAR PAGO (MP)
+// ==============================
+// 🟢 CREAR PAGO MP (sobre pago existente)
+// ==============================
 exports.crearPago = async (req, res) => {
   try {
-    console.log("BODY:", req.body);
+    const { pago_id } = req.body;
 
-    const { cancha_id, fecha, hora_inicio, hora_fin, precio } = req.body;
-
-    // 🔒 VALIDACIÓN FUERTE
-    if (!cancha_id || !fecha || !hora_inicio || !hora_fin || !precio) {
-      return res.status(400).json({ error: "Datos incompletos" });
+    if (!pago_id) {
+      return res.status(400).json({ error: "Falta pago_id" });
     }
+
+    // 🔎 obtener pago
+    const [rows] = await connection.promise().query(
+      "SELECT * FROM pagos WHERE id = ?",
+      [pago_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Pago no encontrado" });
+    }
+
+    const pago = rows[0];
 
     const preference = new Preference(client);
 
@@ -25,116 +36,78 @@ exports.crearPago = async (req, res) => {
           {
             title: "Reserva cancha tenis",
             quantity: 1,
-            unit_price: parseFloat(precio), // 🔥 FIX CLAVE
+            unit_price: parseFloat(pago.monto),
             currency_id: "ARS",
           },
         ],
         metadata: {
-          cancha_id,
-          fecha,
-          hora_inicio,
-          hora_fin,
+          pago_id: pago.id,
         },
         back_urls: {
           success: "http://localhost:5173/pago-exitoso",
           failure: "http://localhost:5173/pago-error",
           pending: "http://localhost:5173/pago-pendiente",
         },
-        
-        
       },
     });
-
-    console.log("MP RESPONSE:", response);
 
     res.json({ init_point: response.init_point });
 
   } catch (error) {
-    console.error("🔥 ERROR REAL MP:", error.message);
-    console.error("🔥 ERROR COMPLETO:", error);
-
-    res.status(500).json({
-      error: "Error al crear pago",
-      detalle: error.message, // 🔥 ahora vas a ver el error real en frontend
-    });
+    console.error("ERROR MP:", error);
+    res.status(500).json({ error: "Error al crear pago" });
   }
 };
 
-
-// 🟢 EFECTIVO
+// ==============================
+// 💵 PAGO MANUAL
+// ==============================
 exports.pagoEfectivo = async (req, res) => {
   try {
-    const { cancha_id, fecha, hora_inicio, hora_fin } = req.body;
+    const { pago_id } = req.body;
 
-    if (!cancha_id || !fecha || !hora_inicio || !hora_fin) {
-      return res.status(400).json({ error: "Datos incompletos" });
-    }
-
-    // 🔒 evitar doble reserva
-    const [existe] = await connection.promise().query(
-      `SELECT id FROM reservas 
-       WHERE cancha_id=? AND fecha=? AND hora_inicio=? AND estado!='cancelada'`,
-      [cancha_id, fecha, hora_inicio]
+    await connection.promise().query(
+      `UPDATE pagos 
+       SET estado = 'pagado', metodo = 'manual', fecha_pago = NOW()
+       WHERE id = ?`,
+      [pago_id]
     );
 
-    if (existe.length > 0) {
-      return res.status(400).json({ error: "Horario ya ocupado" });
-    }
-
-    const [result] = await connection.promise().query(
-      `INSERT INTO reservas 
-       (cancha_id, fecha, hora_inicio, hora_fin, estado, metodo_pago)
-       VALUES (?, ?, ?, ?, 'confirmada', 'efectivo')`,
-      [cancha_id, fecha, hora_inicio, hora_fin]
-    );
-
-    res.json({ ok: true, id: result.insertId });
+    res.json({ ok: true });
 
   } catch (error) {
-    console.error("EFECTIVO ERROR:", error);
+    console.error(error);
     res.status(500).json({ error: "Error en pago efectivo" });
   }
 };
 
+// ==============================
 // 🟢 CONFIRMAR PAGO MP
+// ==============================
 exports.confirmarPago = async (req, res) => {
   try {
     const { payment_id } = req.body;
 
-    if (!payment_id) {
-      return res.status(400).json({ error: "Falta payment_id" });
-    }
-
     const payment = new Payment(client);
     const data = await payment.get({ id: payment_id });
 
-    // 🔥 IMPORTANTE: verificar estado del pago
+    console.log("MP RESPONSE:", data.response);
+
     if (data.response.status !== "approved") {
       return res.status(400).json({ error: "Pago no aprobado" });
     }
 
-    const meta = data.response.metadata;
+    const pago_id = data.response.external_reference;
 
-    if (!meta) {
-      return res.status(400).json({ error: "Sin metadata" });
-    }
-
-    // 🔒 evitar duplicados
-    const [existe] = await connection.promise().query(
-      `SELECT id FROM reservas 
-       WHERE cancha_id=? AND fecha=? AND hora_inicio=?`,
-      [meta.cancha_id, meta.fecha, meta.hora_inicio]
-    );
-
-    if (existe.length > 0) {
-      return res.json({ ok: true, message: "Reserva ya creada" });
+    if (!pago_id) {
+      return res.status(400).json({ error: "Sin pago_id" });
     }
 
     await connection.promise().query(
-      `INSERT INTO reservas 
-       (cancha_id, fecha, hora_inicio, hora_fin, estado, metodo_pago)
-       VALUES (?, ?, ?, ?, 'confirmada', 'mercadopago')`,
-      [meta.cancha_id, meta.fecha, meta.hora_inicio, meta.hora_fin]
+      `UPDATE pagos 
+       SET estado = 'pagado', metodo = 'online', fecha_pago = NOW()
+       WHERE id = ?`,
+      [pago_id]
     );
 
     res.json({ ok: true });

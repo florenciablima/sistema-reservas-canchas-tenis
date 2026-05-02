@@ -43,17 +43,16 @@ export default function AdminDashboard() {
     disponible: true,
   });
 
-  // 🔥 FILTROS
   const [filtroCancha, setFiltroCancha] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
 
-  // 🔥 PAGINACIÓN
-  const [page, setPage] = useState(0);
+  const [pageCanchas, setPageCanchas] = useState(0);
+  const [pageReservas, setPageReservas] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  // ==============================
+  // =============================
   // CARGA DATOS
-  // ==============================
+  // =============================
   async function cargarDatos() {
     try {
       const resCanchas = await client.get("/canchas");
@@ -61,18 +60,8 @@ export default function AdminDashboard() {
 
       setCanchas(resCanchas.data || []);
       setReservas(resReservas.data || []);
-
     } catch (err) {
-      console.error("ERROR ADMIN:", err);
-
-      if (err.response?.status === 401) {
-        localStorage.removeItem("token");
-
-        Swal.fire("Sesión expirada", "Volvé a iniciar sesión", "warning");
-        navigate("/login");
-        return;
-      }
-
+      console.error(err);
       Swal.fire("Error", "No se pudieron cargar los datos", "error");
     }
   }
@@ -81,9 +70,9 @@ export default function AdminDashboard() {
     cargarDatos();
   }, []);
 
-  // ==============================
+  // =============================
   // CANCHAS
-  // ==============================
+  // =============================
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -96,9 +85,8 @@ export default function AdminDashboard() {
 
       setOpenDialog(false);
       cargarDatos();
-
     } catch {
-      Swal.fire("Error", "No se pudo guardar la cancha", "error");
+      Swal.fire("Error", "No se pudo guardar", "error");
     }
   }
 
@@ -124,13 +112,13 @@ export default function AdminDashboard() {
     cargarDatos();
   }
 
-  // ==============================
+  // =============================
   // RESERVAS
-  // ==============================
+  // =============================
   async function cancelarReserva(id) {
     const confirmar = await Swal.fire({
       title: "¿Cancelar reserva?",
-      icon: "question",
+      icon: "warning",
       showCancelButton: true,
     });
 
@@ -140,24 +128,21 @@ export default function AdminDashboard() {
     cargarDatos();
   }
 
-  // 🔥 NUEVO: MARCAR COMO PAGADA
-  async function marcarPagada(id) {
-    const confirmar = await Swal.fire({
-      title: "¿Marcar como pagada?",
-      text: "Pago realizado en efectivo",
-      icon: "question",
-      showCancelButton: true,
-    });
+  async function marcarPagada(id, yaPagado) {
+    if (yaPagado === "pagado") return;
 
-    if (!confirmar.isConfirmed) return;
-
-    await client.put(`/reservas/${id}/pagar`);
-    cargarDatos();
+    try {
+      await client.put(`/reservas/${id}/pagar`);
+      Swal.fire("OK", "Pago registrado", "success");
+      cargarDatos();
+    } catch {
+      Swal.fire("Error", "No se pudo marcar como pagado", "error");
+    }
   }
 
-  // ==============================
+  // =============================
   // FILTROS
-  // ==============================
+  // =============================
   const reservasFiltradas = reservas.filter((r) => {
     return (
       (filtroCancha ? r.cancha_nombre === filtroCancha : true) &&
@@ -165,15 +150,17 @@ export default function AdminDashboard() {
     );
   });
 
-  // PAGINACIÓN
-  const reservasPaginadas = reservasFiltradas.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
+  // PAGINADO
+  const canchasPaginadas = canchas.slice(
+    pageCanchas * rowsPerPage,
+    pageCanchas * rowsPerPage + rowsPerPage
   );
 
-  // ==============================
-  // UI
-  // ==============================
+  const reservasPaginadas = reservasFiltradas.slice(
+    pageReservas * rowsPerPage,
+    pageReservas * rowsPerPage + rowsPerPage
+  );
+
   return (
     <Box
       sx={{
@@ -183,13 +170,24 @@ export default function AdminDashboard() {
         py: 5,
       }}
     >
-      <Container sx={{ bgcolor: "rgba(255,255,255,0.9)", p: 4, borderRadius: 3 }}>
-
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+      <Container
+        sx={{
+          bgcolor: "rgba(255,255,255,0.95)",
+          p: 4,
+          borderRadius: 3,
+          boxShadow: 4,
+        }}
+      >
+        {/* HEADER */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
           <Typography variant="h4">Panel Admin</Typography>
 
-          <Button onClick={() => navigate("/")} startIcon={<ArrowBack />}>
-            Volver
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/")}
+            startIcon={<ArrowBack />}
+          >
+            Volver al inicio
           </Button>
         </Box>
 
@@ -232,7 +230,7 @@ export default function AdminDashboard() {
                 </TableHead>
 
                 <TableBody>
-                  {canchas.map((c) => (
+                  {canchasPaginadas.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell>{c.nombre}</TableCell>
                       <TableCell>{c.tipo}</TableCell>
@@ -244,9 +242,11 @@ export default function AdminDashboard() {
                         <IconButton onClick={() => { setForm(c); setOpenDialog(true); }}>
                           <Edit />
                         </IconButton>
+
                         <IconButton onClick={() => handleDelete(c.id)}>
                           <Delete />
                         </IconButton>
+
                         <IconButton onClick={() => toggleMantenimiento(c)}>
                           <BuildCircle />
                         </IconButton>
@@ -255,6 +255,18 @@ export default function AdminDashboard() {
                   ))}
                 </TableBody>
               </Table>
+
+              <TablePagination
+                component="div"
+                count={canchas.length}
+                page={pageCanchas}
+                onPageChange={(e, p) => setPageCanchas(p)}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={(e) => {
+                  setRowsPerPage(parseInt(e.target.value, 10));
+                  setPageCanchas(0);
+                }}
+              />
             </TableContainer>
           </>
         )}
@@ -262,14 +274,14 @@ export default function AdminDashboard() {
         {/* ================= RESERVAS ================= */}
         {tab === 1 && (
           <>
-            {/* FILTROS */}
-            <Box sx={{ display: "flex", gap: 2, my: 2 }}>
+            {/* FILTROS GRANDES */}
+            <Box sx={{ display: "flex", gap: 3, my: 3 }}>
               <TextField
                 select
                 label="Cancha"
                 value={filtroCancha}
                 onChange={(e) => setFiltroCancha(e.target.value)}
-                sx={{ width: 200 }}
+                sx={{ minWidth: 250 }}
               >
                 <MenuItem value="">Todas</MenuItem>
                 {canchas.map((c) => (
@@ -284,7 +296,7 @@ export default function AdminDashboard() {
                 label="Estado"
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value)}
-                sx={{ width: 200 }}
+                sx={{ minWidth: 250 }}
               >
                 <MenuItem value="">Todos</MenuItem>
                 <MenuItem value="confirmada">Confirmadas</MenuItem>
@@ -298,9 +310,6 @@ export default function AdminDashboard() {
                   <TableRow>
                     <TableCell>Cancha</TableCell>
                     <TableCell>Usuario</TableCell>
-                    <TableCell>Fecha</TableCell>
-                    <TableCell>Inicio</TableCell>
-                    <TableCell>Fin</TableCell>
                     <TableCell>Estado</TableCell>
                     <TableCell>Pago</TableCell>
                     <TableCell>Acciones</TableCell>
@@ -312,34 +321,25 @@ export default function AdminDashboard() {
                     <TableRow key={r.id}>
                       <TableCell>{r.cancha_nombre}</TableCell>
                       <TableCell>{r.usuario_nombre}</TableCell>
-                      <TableCell>
-                        {new Date(r.fecha).toLocaleDateString("es-AR")}
-                      </TableCell>
-                      <TableCell>{r.hora_inicio?.slice(0, 5)}</TableCell>
-                      <TableCell>{r.hora_fin?.slice(0, 5)}</TableCell>
                       <TableCell>{r.estado}</TableCell>
-
-                      {/* 💵 PAGO */}
-                      <TableCell>
-                        {r.pagada ? "🟢 Pagada" : "🟡 Pendiente"}
-                      </TableCell>
+                      <TableCell>{r.pago_estado}</TableCell>
 
                       <TableCell>
-                        {!r.pagada && r.estado === "confirmada" && (
-                          <Button
-                            color="success"
-                            size="small"
-                            onClick={() => marcarPagada(r.id)}
-                          >
-                            Marcar pago
-                          </Button>
-                        )}
+                        <Button
+                          size="small"
+                          variant="contained"
+                          disabled={r.pago_estado === "pagado"}
+                          onClick={() => marcarPagada(r.id, r.pago_estado)}
+                          sx={{ mr: 1 }}
+                        >
+                          Pagar
+                        </Button>
 
                         <Button
-                          color="error"
                           size="small"
+                          color="error"
+                          variant="outlined"
                           onClick={() => cancelarReserva(r.id)}
-                          disabled={r.estado === "cancelada"}
                         >
                           Cancelar
                         </Button>
@@ -352,37 +352,42 @@ export default function AdminDashboard() {
               <TablePagination
                 component="div"
                 count={reservasFiltradas.length}
-                page={page}
-                onPageChange={(e, newPage) => setPage(newPage)}
+                page={pageReservas}
+                onPageChange={(e, p) => setPageReservas(p)}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={(e) => {
                   setRowsPerPage(parseInt(e.target.value, 10));
-                  setPage(0);
+                  setPageReservas(0);
                 }}
               />
             </TableContainer>
           </>
         )}
-
       </Container>
 
       {/* DIALOG */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>{form.id ? "Editar Cancha" : "Nueva Cancha"}</DialogTitle>
+        <DialogTitle>
+          {form.id ? "Editar Cancha" : "Nueva Cancha"}
+        </DialogTitle>
 
         <DialogContent>
           <Box sx={{ display: "grid", gap: 2, mt: 2 }}>
             <TextField
               label="Nombre"
               value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, nombre: e.target.value })
+              }
             />
 
             <TextField
               select
               label="Tipo"
               value={form.tipo}
-              onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, tipo: e.target.value })
+              }
             >
               <MenuItem value="polvo">Polvo</MenuItem>
               <MenuItem value="cemento">Cemento</MenuItem>
@@ -410,11 +415,6 @@ export default function AdminDashboard() {
     </Box>
   );
 }
-
-
-
-
-
 
 
 

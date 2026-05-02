@@ -1,6 +1,8 @@
 const connection = require("../models/db");
 
-//Crear una reserva (usuario autenticado)
+// ==============================
+// CREAR RESERVA + ORDEN DE PAGO
+// ==============================
 exports.crearReserva = async (req, res) => {
   try {
     const { cancha_id, fecha, hora_inicio, hora_fin } = req.body;
@@ -12,9 +14,7 @@ exports.crearReserva = async (req, res) => {
 
     const fechaSQL = fecha.split("T")[0];
 
-    // ==============================
-    // VALIDACIÓN DE FECHA
-    // ==============================
+    // VALIDACIÓN FECHA
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
@@ -24,7 +24,7 @@ exports.crearReserva = async (req, res) => {
 
     if (fechaReserva < hoy) {
       return res.status(400).json({
-        error: "No se pueden reservar fechas pasadas"
+        error: "No se pueden reservar fechas pasadas",
       });
     }
 
@@ -34,22 +34,18 @@ exports.crearReserva = async (req, res) => {
 
     if (fechaReserva > maxFecha) {
       return res.status(400).json({
-        error: "Solo se puede reservar con hasta 14 días de anticipación"
+        error: "Solo 14 días de anticipación",
       });
     }
 
-    // ==============================
     // VALIDAR HORARIO
-    // ==============================
     if (hora_inicio >= hora_fin) {
       return res.status(400).json({
-        error: "La hora de inicio debe ser menor que la hora de fin"
+        error: "Hora inicio debe ser menor",
       });
     }
 
-    // ==============================
-    // VERIFICAR DISPONIBILIDAD
-    // ==============================
+    // DISPONIBILIDAD
     const [conflictos] = await connection.promise().query(
       `SELECT * FROM reservas 
        WHERE cancha_id = ? 
@@ -74,13 +70,11 @@ exports.crearReserva = async (req, res) => {
 
     if (conflictos.length > 0) {
       return res.status(409).json({
-        error: "Este horario ya está reservado. Elija otro horario disponible.",
+        error: "Horario ocupado",
       });
     }
 
-    // ==============================
     // CREAR RESERVA
-    // ==============================
     const [result] = await connection.promise().query(
       `INSERT INTO reservas 
        (usuario_id, cancha_id, fecha, hora_inicio, hora_fin, estado)
@@ -88,17 +82,40 @@ exports.crearReserva = async (req, res) => {
       [usuario_id, cancha_id, fechaSQL, hora_inicio, hora_fin]
     );
 
+    const reservaId = result.insertId;
+
+    // OBTENER PRECIO
+    const [cancha] = await connection.promise().query(
+      "SELECT precio_hora FROM canchas WHERE id = ?",
+      [cancha_id]
+    );
+
+    const precio = cancha[0]?.precio_hora || 0;
+
+    // CREAR PAGO
+    const [pagoResult] = await connection.promise().query(
+      `INSERT INTO pagos (usuario_id, reserva_id, monto, metodo, estado)
+       VALUES (?, ?, ?, 'manual', 'pendiente')`,
+      [usuario_id, reservaId, precio]
+    );
+
+    const pagoId = pagoResult.insertId;
+
     res.status(201).json({
       message: "Reserva creada correctamente",
-      id: result.insertId,
+      reserva_id: reservaId,
+      pago_id: pagoId,
     });
+
   } catch (err) {
     console.error("Error al crear reserva:", err);
-    res.status(500).json({ error: "Error interno del servidor" });
+    res.status(500).json({ error: "Error interno" });
   }
 };
 
-// 🔹 Listar reservas del usuario autenticado
+// ==============================
+// MIS RESERVAS
+// ==============================
 exports.listarPorUsuario = async (req, res) => {
   try {
     const usuario_id = req.user.id;
@@ -106,48 +123,49 @@ exports.listarPorUsuario = async (req, res) => {
     const [rows] = await connection.promise().query(
       `SELECT 
          r.*, 
-         c.nombre AS cancha_nombre, 
-         c.tipo AS cancha_tipo,
-         c.precio_hora AS precio_hora
+         c.nombre AS cancha_nombre,
+         p.estado AS pago_estado
        FROM reservas r 
-       JOIN canchas c ON r.cancha_id = c.id 
+       JOIN canchas c ON r.cancha_id = c.id
+       LEFT JOIN pagos p ON r.id = p.reserva_id
        WHERE r.usuario_id = ?
-       ORDER BY r.fecha DESC, r.hora_inicio DESC
-       LIMIT 6`,
+       ORDER BY r.fecha DESC`,
       [usuario_id]
     );
 
     res.json(rows);
   } catch (err) {
-    console.error("Error al listar reservas:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// 🔥 LISTAR TODAS (ADMIN) — CORREGIDO
+// ==============================
+// ADMIN - TODAS
+// ==============================
 exports.listarTodas = async (req, res) => {
   try {
     const [rows] = await connection.promise().query(
       `SELECT 
         r.*, 
-        COALESCE(u.nombre, 'Sin usuario') AS usuario_nombre,
-        COALESCE(c.nombre, 'Sin cancha') AS cancha_nombre
+        u.nombre AS usuario_nombre,
+        c.nombre AS cancha_nombre,
+        p.estado AS pago_estado
       FROM reservas r
       LEFT JOIN usuarios u ON r.usuario_id = u.id
       LEFT JOIN canchas c ON r.cancha_id = c.id
-      ORDER BY r.fecha DESC, r.hora_inicio DESC`
+      LEFT JOIN pagos p ON r.id = p.reserva_id
+      ORDER BY r.fecha DESC`
     );
-
-    console.log("RESERVAS TRAIDAS:", rows);
 
     res.json(rows);
   } catch (err) {
-    console.error("Error al listar todas:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// 🔹 Actualizar estado (admin)
+// ==============================
+// ACTUALIZAR ESTADO (ADMIN)
+// ==============================
 exports.actualizarReserva = async (req, res) => {
   try {
     const id = req.params.id;
@@ -164,66 +182,58 @@ exports.actualizarReserva = async (req, res) => {
 
     res.json({ message: "Reserva actualizada correctamente" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error actualizarReserva:", err);
+    res.status(500).json({ error: "Error interno" });
   }
 };
 
-// 🔹 Cancelar reserva
+// ==============================
+// CANCELAR RESERVA
+// ==============================
 exports.cancelarReserva = async (req, res) => {
   try {
     const id = req.params.id;
-    const usuario_id = req.user.id;
-
-    const [rows] = await connection.promise().query(
-      "SELECT * FROM reservas WHERE id = ?",
-      [id]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Reserva no encontrada" });
-    }
-
-    const reserva = rows[0];
-
-    if (req.user.rol !== "admin" && reserva.usuario_id !== usuario_id) {
-      return res.status(403).json({
-        error: "No puedes cancelar reservas de otro usuario"
-      });
-    }
-
-    if (reserva.estado === "cancelada") {
-      return res.status(400).json({
-        error: "La reserva ya está cancelada"
-      });
-    }
 
     await connection.promise().query(
       "UPDATE reservas SET estado = 'cancelada' WHERE id = ?",
       [id]
     );
 
-    return res.json({ message: "Reserva cancelada correctamente" });
+    await connection.promise().query(
+      "UPDATE pagos SET estado = 'cancelado' WHERE reserva_id = ?",
+      [id]
+    );
+
+    res.json({ message: "Reserva cancelada" });
+
   } catch (err) {
-    console.error("Error al cancelar reserva:", err);
-    return res.status(500).json({ error: "Error interno del servidor" });
+    console.error("Error cancelarReserva:", err);
+    res.status(500).json({ error: "Error interno" });
   }
 };
 
-exports.marcarPagada = (req, res) => {
-  const { id } = req.params;
+// ==============================
+// MARCAR COMO PAGADA (ADMIN)
+// ==============================
+exports.marcarPagada = async (req, res) => {
+  try {
+    const id = req.params.id;
 
-  const sql = `
-    UPDATE reservas 
-    SET pagada = true 
-    WHERE id = ?
-  `;
+    const [result] = await connection.promise().query(
+      `UPDATE pagos 
+       SET estado = 'pagado', fecha_pago = NOW()
+       WHERE reserva_id = ?`,
+      [id]
+    );
 
-  connection.query(sql, [id], (err, result) => {
-    if (err) {
-      console.error("ERROR marcarPagada:", err);
-      return res.status(500).json({ error: "Error al marcar como pagada" });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Pago no encontrado" });
     }
 
-    res.json({ message: "Reserva marcada como pagada" });
-  });
+    res.json({ message: "Pago marcado como pagado" });
+
+  } catch (err) {
+    console.error("Error marcarPagada:", err);
+    res.status(500).json({ error: "Error interno" });
+  }
 };

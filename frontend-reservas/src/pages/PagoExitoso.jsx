@@ -8,52 +8,61 @@ export default function PagoExitoso() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 🔒 mejor que useState para evitar doble ejecución
+  // 🔒 evita doble ejecución (React Strict Mode)
   const procesado = useRef(false);
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const payment_id = query.get("payment_id");
 
+    // ❌ si no vino el pago
     if (!payment_id) {
-      Swal.fire("Error", "No se recibió el pago", "error");
+      Swal.fire({
+        title: "Error",
+        text: "No se recibió información del pago",
+        icon: "error",
+      });
+
       navigate("/reservar");
       return;
     }
 
+    // 🔒 evitar doble ejecución
     if (procesado.current) return;
     procesado.current = true;
 
-    async function confirmar() {
+    async function confirmarPago() {
       try {
+        // 🔥 SOLO confirma el pago (NO crea reserva)
         await client.post("/pagos/confirmar", {
           payment_id,
         });
 
         await Swal.fire({
           title: "Pago aprobado 🎾",
-          text: "Reserva confirmada correctamente",
+          text: "Tu reserva fue confirmada correctamente",
           icon: "success",
-          confirmButtonText: "Ver turnos",
+          confirmButtonText: "Ver mis reservas",
         });
 
-        // 🔥 REDIRECCIÓN FINAL
-        navigate("/reservas"); // o "/reservar" si preferís
+        navigate("/reservas");
 
       } catch (error) {
         console.error("ERROR CONFIRMAR:", error);
 
-        await Swal.fire(
-          "Error",
-          "El pago se realizó pero no pudimos confirmar la reserva",
-          "error"
-        );
+        await Swal.fire({
+          title: "Pago recibido",
+          text: "Pero hubo un problema al registrarlo. Contactá al club.",
+          icon: "warning",
+          confirmButtonText: "Ir a mis reservas",
+        });
 
-        navigate("/reservar");
+        navigate("/reservas");
       }
     }
 
-    confirmar();
+    confirmarPago();
+
   }, [location, navigate]);
 
   return (
@@ -69,7 +78,11 @@ export default function PagoExitoso() {
       <CircularProgress sx={{ mb: 2 }} />
 
       <Typography variant="h6">
-        Procesando pago...
+        Confirmando pago...
+      </Typography>
+
+      <Typography variant="body2" color="text.secondary">
+        Por favor esperá unos segundos
       </Typography>
     </Box>
   );
