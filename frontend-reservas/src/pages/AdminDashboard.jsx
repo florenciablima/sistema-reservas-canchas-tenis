@@ -325,15 +325,17 @@ export default function AdminDashboard() {
                       <TableCell>{r.pago_estado}</TableCell>
 
                       <TableCell>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          disabled={r.pago_estado === "pagado"}
-                          onClick={() => marcarPagada(r.id, r.pago_estado)}
-                          sx={{ mr: 1 }}
-                        >
-                          Pagar
-                        </Button>
+                        {r.pago_metodo !== "online" && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            disabled={r.pago_estado === "pagado"}
+                            onClick={() => marcarPagada(r.id, r.pago_estado)}
+                            sx={{ mr: 1 }}
+                          >
+                            Pagar
+                          </Button>
+                        )}
 
                         <Button
                           size="small"
@@ -415,6 +417,8 @@ export default function AdminDashboard() {
     </Box>
   );
 }
+
+
 
 
 

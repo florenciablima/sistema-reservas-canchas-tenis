@@ -28,6 +28,12 @@ exports.crearPago = async (req, res) => {
 
     const pago = rows[0];
 
+    // Marcar como online apenas el usuario elige MP
+    await connection.promise().query(
+      "UPDATE pagos SET metodo = 'online' WHERE id = ?",
+      [pago_id]
+    );
+
     const preference = new Preference(client);
 
     const response = await preference.create({
@@ -40,9 +46,7 @@ exports.crearPago = async (req, res) => {
             currency_id: "ARS",
           },
         ],
-        metadata: {
-          pago_id: pago.id,
-        },
+        external_reference: String(pago.id),
         back_urls: {
           success: "http://localhost:5173/pago-exitoso",
           failure: "http://localhost:5173/pago-error",

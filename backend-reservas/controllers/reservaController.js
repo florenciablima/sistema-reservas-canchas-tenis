@@ -149,7 +149,8 @@ exports.listarTodas = async (req, res) => {
         r.*, 
         u.nombre AS usuario_nombre,
         c.nombre AS cancha_nombre,
-        p.estado AS pago_estado
+        p.estado AS pago_estado,
+        p.metodo AS pago_metodo
       FROM reservas r
       LEFT JOIN usuarios u ON r.usuario_id = u.id
       LEFT JOIN canchas c ON r.cancha_id = c.id

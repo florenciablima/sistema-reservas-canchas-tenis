@@ -79,8 +79,11 @@ export default function Reservar() {
 
     if (pago.isDismissed) return;
 
-    const hora_inicio = bloque.inicio.split("T")[1].slice(0, 5);
-    const hora_fin = bloque.fin.split("T")[1].slice(0, 5);
+    const separadorInicio = bloque.inicio.includes("T") ? "T" : " ";
+    const separadorFin = bloque.fin.includes("T") ? "T" : " ";
+    const hora_inicio = bloque.inicio.split(separadorInicio)[1].slice(0, 5);
+    const hora_fin = bloque.fin.split(separadorFin)[1].slice(0, 5);
+    console.log("Enviando reserva:", { cancha_id: canchaSeleccionada, fecha: fechaSeleccionada, hora_inicio, hora_fin });
 
     try {
       // EFECTIVO
